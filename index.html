@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+
+  <!-- Page title shown in browser tab -->
+  <title>No Man's Sky Freighter Planner</title>
+
+  <!-- Main stylesheet -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- PIXI.js rendering engine (GPU accelerated canvas) -->
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@7/dist/pixi.min.js"></script>
+</head>
+<body>
+  <!-- Sidebar UI (controls, module selection, save/load) -->
+  <div id="ui">
+    <h1>Freighter Planner</h1>
+
+    <!-- Floor selection dropdown -->
+    <label>Floor:
+      <select id="floorSelect"></select>
+    </label>
+
+    <!-- Module palette (dynamically populated) -->
+    <h3>Modules</h3>
+    <div id="modulePalette"></div>
+
+    <hr>
+
+    <!-- Persistence controls -->
+    <button id="saveBtn">💾 Save</button>
+    <button id="loadBtn">📂 Load</button>
+
+    <!-- UX hint -->
+    <p>Scroll to zoom, click or drag to place module.</p>
+  </div>
+
+  <!-- PIXI canvas is injected here -->
+  <div id="canvasContainer"></div>
+
+  <!-- Entry point (ES module) -->
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

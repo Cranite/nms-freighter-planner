@@ -1,0 +1,70 @@
+body {
+  margin: 0;
+  background: #101010;
+  color: #ddd;
+  font-family: sans-serif;
+  display: flex;
+  flex-direction: row;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#ui {
+  width: 200px;
+  padding: 10px;
+  background: #1a1a1a;
+  border-right: 1px solid #333;
+}
+
+#canvasContainer {
+  flex: 1;
+  overflow: hidden;
+}
+
+button {
+  margin: 4px 0;
+  width: 100%;
+}
+
+#modulePalette {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.module-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: #111;
+  color: #ddd;
+  cursor: pointer;
+  transition: background 0.2s, border 0.2s;
+}
+
+.module-btn:hover {
+  background: #1e1e1e;
+}
+
+.module-btn.selected {
+  border-color: #fff;
+  background: #222;
+}
+
+.icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.color-fallback {
+  box-shadow: 0 0 4px rgba(0,0,0,0.4);
+}
+
+.module-label {
+  flex: 1;
+  font-size: 0.9rem;
+}
