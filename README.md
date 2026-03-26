@@ -32,4 +32,4 @@ The project is structured into clear layers:
 - 3D visualization of freighter layout
 
 ## 🌐 Live Demo
-https://yourusername.github.io/freighter-planner/
+https://cranite.github.io/nms-freighter-planner/
