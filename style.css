@@ -11,6 +11,8 @@ body {
 
 #ui {
   width: 200px;
+  flex-shrink: 0;
+  overflow-y: auto; /* scroll controls on short windows */
   padding: 10px;
   background: #1a1a1a;
   border-right: 1px solid #333;
@@ -18,7 +20,12 @@ body {
 
 #canvasContainer {
   flex: 1;
+  min-width: 0; /* allow shrinking below canvas size on window resize */
   overflow: hidden;
+}
+
+#canvasContainer canvas {
+  display: block; /* no inline baseline gap under the canvas */
 }
 
 button {
@@ -37,7 +44,7 @@ button {
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border: 2px solid transparent;
+  border: 2px solid var(--module-color, transparent);
   border-radius: 8px;
   background: #111;
   color: #ddd;

@@ -1,6 +1,6 @@
 import { FLOORS, MODULE_TYPES } from './data.js';
 
-export function setupUI({ onSelectModule, onSelectFloor, onSave, onLoad }) {
+export function setupUI({ onSelectModule, onSelectFloor, onSave, onLoad, onExport, onImport }) {
   // Palette
   const paletteContainer = document.getElementById('modulePalette');
   MODULE_TYPES.forEach(mod => {
@@ -65,10 +65,10 @@ export function setupUI({ onSelectModule, onSelectFloor, onSave, onLoad }) {
       onSelectModule(mod);
     });
 
-    btn.style.borderColor = colorHex;
+    // Via CSS variable so the .selected border can still override it
+    btn.style.setProperty('--module-color', colorHex);
     paletteContainer.appendChild(btn);
   });
-  paletteContainer.lastChild.classList.add('selected');
 
   // Floor Selector
   const floorSelect = document.getElementById('floorSelect');
@@ -83,4 +83,30 @@ export function setupUI({ onSelectModule, onSelectFloor, onSave, onLoad }) {
   // Buttons
   document.getElementById('saveBtn').addEventListener('click', onSave);
   document.getElementById('loadBtn').addEventListener('click', onLoad);
+  document.getElementById('exportBtn').addEventListener('click', onExport);
+
+  // Import: button opens hidden file picker, file text is passed on
+  const importInput = document.getElementById('importInput');
+  document.getElementById('importBtn').addEventListener('click', () => importInput.click());
+  importInput.addEventListener('change', async () => {
+    const file = importInput.files[0];
+    importInput.value = ''; // allow re-importing the same file
+    if (file) onImport(await file.text());
+  });
+}
+
+/**
+ * Lets the browser download text as a file
+ */
+export function downloadTextFile(filename, text, mimeType = 'application/json') {
+  const url = URL.createObjectURL(new Blob([text], { type: mimeType }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+
+  // Link must be in the document for Firefox; revoke after the download has started
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }

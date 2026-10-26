@@ -1,5 +1,8 @@
-import { createEmptyFreighter, saveFreighter, loadFreighter } from './data.js';
-import { setupUI } from './ui.js';
+import {
+  createEmptyFreighter, saveFreighter, loadFreighter,
+  serializeFreighter, deserializeFreighter, EMPTY_ID,
+} from './data.js';
+import { setupUI, downloadTextFile } from './ui.js';
 import { createRenderer } from './render.js';
 
 // Application state
@@ -33,18 +36,55 @@ setupUI({
   },
 
   onLoad: () => {
-    const data = loadFreighter();
+    let result;
+    try {
+      result = loadFreighter();
+    } catch (err) {
+      alert(`Saved layout could not be loaded: ${err.message}`);
+      return;
+    }
 
-    if (data) {
-      freighter = data;
-
-      renderer.drawModules(freighter.floors[currentFloor - 1]);
-      alert('Layout loaded!');
+    if (result) {
+      replaceFreighter(result);
+      alert(`Layout loaded!${skippedNote(result.skipped)}`);
     } else {
       alert('No saved layout found.');
     }
   },
+
+  onExport: () => {
+    const date = new Date().toISOString().slice(0, 10);
+    downloadTextFile(`freighter-layout-${date}.json`, serializeFreighter(freighter));
+  },
+
+  onImport: (text) => {
+    let result;
+    try {
+      result = deserializeFreighter(text);
+    } catch (err) {
+      alert(`Import failed: ${err.message}`);
+      return;
+    }
+
+    replaceFreighter(result);
+    alert(`Layout imported!${skippedNote(result.skipped)}`);
+  },
 });
+
+/**
+ * Swaps in a loaded/imported layout and redraws
+ */
+function replaceFreighter({ freighter: loaded }) {
+  freighter = loaded;
+  renderer.drawModules(freighter.floors[currentFloor - 1]);
+}
+
+/**
+ * Message suffix for tiles dropped because their module type no longer exists
+ */
+function skippedNote(skipped) {
+  return skipped ? ` (${skipped} tile(s) with unknown modules were skipped)` : '';
+}
 
 
 /**
@@ -55,6 +95,11 @@ setupUI({
  */
 function applyDraw(x, y, mode) {
   const tile = freighter.floors[currentFloor - 1].tiles[y][x];
+
+  // 'Empty' module works as an eraser
+  if (mode === 'place' && selectedModule?.id === EMPTY_ID) {
+    mode = 'remove';
+  }
 
   if (mode === 'place' && selectedModule) {
     tile.type = selectedModule.id;

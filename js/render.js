@@ -1,4 +1,4 @@
-import { TILE_SIZE, GRID_SIZE, MODULE_TYPES  } from './data.js';
+import { TILE_SIZE, GRID_SIZE, MODULE_TYPES, MODULE_BY_ID, EMPTY_ID } from './data.js';
 
 const textureCache = {};
 
@@ -26,14 +26,16 @@ async function loadTextures() {
  * - Initializes scene structure
  */
 export async function createRenderer() {
+  const canvasContainer = document.getElementById('canvasContainer');
+
   const app = new PIXI.Application({
-    width: window.innerWidth - 200,
-    height: window.innerHeight,
+    width: canvasContainer.clientWidth,
+    height: canvasContainer.clientHeight,
     background: '#000',
     antialias: true,
   });
 
-  document.getElementById('canvasContainer').appendChild(app.view);
+  canvasContainer.appendChild(app.view);
 
   await loadTextures();
 
@@ -69,7 +71,15 @@ function initRenderer(app) {
     (GRID_SIZE * TILE_SIZE) / 2,
     (GRID_SIZE * TILE_SIZE) / 2
   );
-  
+
+  // Follow container size; keep the grid in view.
+  // ResizeObserver also fires once on observe, catching size changes during texture loading.
+  new ResizeObserver(() => {
+    const { clientWidth, clientHeight } = app.view.parentElement;
+    app.renderer.resize(clientWidth, clientHeight);
+    clampStagePosition(stageContainer, app);
+  }).observe(app.view.parentElement);
+
   return {
     drawModules: (floor) => drawModules(moduleContainer, floor),
     setupInteraction: (applyDraw, getModule, getRotation, setRotation) => setupInteraction(gridContainer, applyDraw, getModule, getRotation, setRotation, ghostContainer),
@@ -98,15 +108,18 @@ function drawGrid(container) {
  * Uses texture if available, fallback to colored rectangle otherwise.
  */
 function drawModules(container, floor) {
-  container.removeChildren();
+  // Destroy old display objects (removing alone leaks GPU geometry)
+  container.removeChildren().forEach(child => child.destroy());
 
   for (let y = 0; y < GRID_SIZE; y++) {
     for (let x = 0; x < GRID_SIZE; x++) {
 
       const tile = floor.tiles[y][x];
-      if (!tile.type) continue;
 
-      const modDef = MODULE_TYPES.find(m => m.id === tile.type);
+      // Skip empty tiles and unknown module types
+      const modDef = MODULE_BY_ID[tile.type];
+      if (!modDef || modDef.id === EMPTY_ID) continue;
+
       const texture = textureCache[tile.type];
 
       if (texture) {
@@ -150,7 +163,7 @@ function drawModules(container, floor) {
  */
 function drawGhost(container, x, y, module, rotation) {
   if (!container) return;
-  container.removeChildren();
+  container.removeChildren().forEach(child => child.destroy());
   
   if (!module) return;
 
@@ -305,6 +318,10 @@ function setupInteraction(container, applyDraw, getModule, getRotation, setRotat
 
   // Rotation hotkey
   window.addEventListener('keydown', (e) => {
+    // Ignore while a form control has focus, and browser shortcuts (Ctrl+R)
+    if (e.target.closest?.('input, select, textarea, [contenteditable]')) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+
     if (e.key.toLowerCase() === 'r') {
       const newRotation = (getRotation() + 90) % 360;
       setRotation(newRotation);

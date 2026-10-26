@@ -8,6 +8,7 @@ A browser-based planning tool for designing freighter layouts using a grid syste
 - Rotation system (R key)
 - Zoom & pan (mouse)
 - Save/load via localStorage
+- Export/import layout as JSON file (versioned format, older saves are upgraded automatically)
 - Texture-based rendering with fallback colors
 
 ## 🧠 Tech Stack
@@ -24,12 +25,15 @@ The project is structured into clear layers:
 - `main.js` → orchestration / application logic
 
 ## 🔮 Future Improvements
-- Adding more modules to plan design
-- Export/import layout as JSON file
-- Undo/redo system
-- Performance optimization (partial rendering instead of full redraw)
-- Module snapping / validation logic
-- 3D visualization of freighter layout
+Planned order:
+1. ~~Export/import layout as JSON file~~ ✅
+2. Performance optimization (partial rendering instead of full redraw)
+3. Undo/redo system
+4. Adding more modules to plan design
+5. Module snapping / validation logic
+6. 3D visualization of freighter layout
+
+See [ROADMAP.md](ROADMAP.md) for details and the full list of ideas.
 
 ## 🌐 Live Demo
 https://cranite.github.io/nms-freighter-planner/
