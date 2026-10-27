@@ -1,6 +1,10 @@
 import { FLOORS, MODULE_TYPES } from './data.js';
 
-export function setupUI({ onSelectModule, onSelectFloor, onSave, onLoad, onExport, onImport }) {
+/**
+ * Builds the sidebar and wires up its controls.
+ * Returns functions to update UI state from the app.
+ */
+export function setupUI({ onSelectModule, onSelectFloor, onSave, onLoad, onExport, onImport, onUndo, onRedo }) {
   // Palette
   const paletteContainer = document.getElementById('modulePalette');
   MODULE_TYPES.forEach(mod => {
@@ -93,6 +97,39 @@ export function setupUI({ onSelectModule, onSelectFloor, onSave, onLoad, onExpor
     importInput.value = ''; // allow re-importing the same file
     if (file) onImport(await file.text());
   });
+
+  // Undo/redo: buttons + Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  undoBtn.addEventListener('click', onUndo);
+  redoBtn.addEventListener('click', onRedo);
+
+  window.addEventListener('keydown', (e) => {
+    // Leave text fields their own undo
+    if (e.target.closest?.('input, textarea, [contenteditable]')) return;
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+
+    const key = e.key.toLowerCase();
+    if (key === 'z' && !e.shiftKey) {
+      e.preventDefault();
+      onUndo();
+    } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
+      e.preventDefault();
+      onRedo();
+    }
+  });
+
+  return {
+    setUndoRedoState(canUndo, canRedo) {
+      undoBtn.disabled = !canUndo;
+      redoBtn.disabled = !canRedo;
+    },
+
+    // Reflect a floor change made by the app (e.g. undo on another floor)
+    setFloor(n) {
+      floorSelect.value = n;
+    },
+  };
 }
 
 /**

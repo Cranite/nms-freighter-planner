@@ -13,9 +13,10 @@ Each step makes the next one cheaper, so the order matters.
   - Keep one sprite per cell, update only changed cells
   - Gives a per-cell layer for validation highlights later
   - Grid is one Graphics with a single pointer handler (was 441 objects + handlers); fast drags fill skipped tiles
-- [ ] **3. Undo/redo system**
+- [x] **3. Undo/redo system**
   - Record changes at the single mutation point (`applyDraw`)
   - A drag stroke undoes as one step
+  - Load/import are undoable; undo on another floor switches to that floor; 100 steps kept (`js/history.js`)
 - [ ] **4. More modules**
   - First extend module definitions: connection sides (N/E/S/W), category (palette grouping), optional footprint for multi-tile rooms
   - Then add the full set of freighter rooms
@@ -39,7 +40,7 @@ Each step makes the next one cheaper, so the order matters.
 - [ ] Eyedropper: pick module + rotation from a placed tile
 - [ ] Copy / paste / clear a whole floor
 - [ ] Right-click to erase (instead of Shift+click)
-- [ ] Keyboard shortcuts: `1`–`9` select module, PgUp/PgDn change floor, Ctrl+Z / Ctrl+Y undo/redo
+- [ ] Keyboard shortcuts: `1`–`9` select module, PgUp/PgDn change floor (Ctrl+Z / Ctrl+Y undo/redo ✅ done)
 
 ## 🧭 Planning helpers
 

@@ -9,6 +9,7 @@ A browser-based planning tool for designing freighter layouts using a grid syste
 - Zoom & pan (mouse)
 - Save/load via localStorage
 - Export/import layout as JSON file (versioned format, older saves are upgraded automatically)
+- Undo/redo (Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z) — a drag undoes as one step, load/import can be undone too
 - Texture-based rendering with fallback colors
 
 ## 🧠 Tech Stack
@@ -22,13 +23,14 @@ The project is structured into clear layers:
 - `data.js` → state management & configuration
 - `render.js` → PIXI rendering & interaction logic
 - `ui.js` → DOM-based UI
+- `history.js` → undo/redo history
 - `main.js` → orchestration / application logic
 
 ## 🔮 Future Improvements
 Planned order:
 1. ~~Export/import layout as JSON file~~ ✅
 2. ~~Performance optimization (partial rendering instead of full redraw)~~ ✅
-3. Undo/redo system
+3. ~~Undo/redo system~~ ✅
 4. Adding more modules to plan design
 5. Module snapping / validation logic
 6. 3D visualization of freighter layout

@@ -83,7 +83,7 @@ function initRenderer(app) {
   return {
     drawFloor: modules.drawFloor,
     drawTile: modules.drawTile,
-    setupInteraction: (applyDraw, getModule, getRotation, setRotation) => setupInteraction(grid, applyDraw, getModule, getRotation, setRotation, ghost),
+    setupInteraction: (applyDraw, getModule, getRotation, setRotation, onStrokeEnd) => setupInteraction(grid, applyDraw, getModule, getRotation, setRotation, onStrokeEnd, ghost),
   };
 }
 
@@ -329,8 +329,15 @@ function centerStage(stageContainer, app) {
  *
  * One pointer handler on the grid works out the tile under the pointer.
  */
-function setupInteraction(grid, applyDraw, getModule, getRotation, setRotation, ghost) {
+function setupInteraction(grid, applyDraw, getModule, getRotation, setRotation, onStrokeEnd, ghost) {
   let isDrawing = false;
+
+  // Pointer released: the stroke (click or drag) is complete
+  const endStroke = () => {
+    if (!isDrawing) return;
+    isDrawing = false;
+    onStrokeEnd();
+  };
 
   let hoverTile = null; // { x, y } under the pointer
   let lastDrawn = null; // last tile drawn in the current stroke
@@ -404,10 +411,10 @@ function setupInteraction(grid, applyDraw, getModule, getRotation, setRotation, 
   });
 
   grid.on('pointerout', leaveGrid);
-  grid.on('pointerup', () => (isDrawing = false));
-  grid.on('pointerupoutside', () => (isDrawing = false));
+  grid.on('pointerup', endStroke);
+  grid.on('pointerupoutside', endStroke);
 
-  window.addEventListener('mouseup', () => (isDrawing = false));
+  window.addEventListener('mouseup', endStroke);
 }
 
 /**
