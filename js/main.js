@@ -1,7 +1,8 @@
 import {
   createEmptyFreighter, saveFreighter, loadFreighter,
-  serializeFreighter, deserializeFreighter, EMPTY_ID,
+  serializeFreighter, deserializeFreighter, isLockedTile,
 } from './data.js';
+import { EMPTY_ID } from './modules.js';
 import { setupUI, downloadTextFile } from './ui.js';
 import { createRenderer } from './render.js';
 import { createHistory } from './history.js';
@@ -117,7 +118,7 @@ function applyHistoryEntry(entry, side) {
   }
 
   if (entry.floor === currentFloor) {
-    changes.forEach(({ x, y }) => renderer.drawTile(x, y, floor.tiles[y][x]));
+    changes.forEach(({ x, y }) => renderer.drawTile(x, y));
   } else {
     // Switch to the floor the change was made on, so it's visible
     currentFloor = entry.floor;
@@ -141,6 +142,9 @@ function skippedNote(skipped) {
  * @param mode 'place' | 'remove'
  */
 function applyDraw(x, y, mode) {
+  // Entrance ramp can't be built on
+  if (isLockedTile(currentFloor, x, y)) return;
+
   const tile = freighter.floors[currentFloor - 1].tiles[y][x];
   const before = { type: tile.type, rotation: tile.rotation };
 
@@ -151,7 +155,8 @@ function applyDraw(x, y, mode) {
 
   if (mode === 'place' && selectedModule) {
     tile.type = selectedModule.id;
-    tile.rotation = selectedRotation;
+    // Only some modules have a direction (e.g. stairs); corridors shape themselves
+    tile.rotation = selectedModule.rotatable ? selectedRotation : 0;
 
   } else if (mode === 'remove') {
     tile.type = null;
@@ -163,8 +168,8 @@ function applyDraw(x, y, mode) {
   // Part of the current stroke's undo step
   history.recordTile(currentFloor, x, y, before, { type: tile.type, rotation: tile.rotation });
 
-  // Re-render only the changed tile
-  renderer.drawTile(x, y, tile);
+  // Re-render only the changed tile (and neighbours whose corridor shape may change)
+  renderer.drawTile(x, y);
 }
 
 // Setup pointer interaction

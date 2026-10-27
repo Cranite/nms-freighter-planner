@@ -17,11 +17,17 @@ Each step makes the next one cheaper, so the order matters.
   - Record changes at the single mutation point (`applyDraw`)
   - A drag stroke undoes as one step
   - Load/import are undoable; undo on another floor switches to that floor; 100 steps kept (`js/history.js`)
-- [ ] **4. More modules**
-  - First extend module definitions: connection sides (N/E/S/W), category (palette grouping), optional footprint for multi-tile rooms
-  - Then add the full set of freighter rooms
+- [x] **4. More modules**
+  - 37 modules from the wiki's Freighter Base Building list (`js/modules.js`), grouped by category, searchable palette
+  - Corridors shape themselves from their neighbours (as in the game since Endurance); rotation only for stairs
+  - Locked entrance ramp tile on floor 1; save format v2 migrates the old placeholder modules
+  - Open question: do stairs take a tile on both floors they connect? (currently one tile + direction)
 - [ ] **5. Module snapping / validation**
   - Start with highlighting problems (corridor opening into a wall, unreachable rooms), auto-snapping later
+  - Each Storage Room number (0–9) only once per freighter
+  - Exterior Catwalk/Platform need a Bulkhead Door to be reachable
+- [ ] **Wall pieces: Internal Freighter Wall, Bulkhead Door, Reinforced Window**
+  - They sit on the edges between tiles, so they need an edge layer (4 sides per tile) in data, rendering and saves
 - [ ] **6. 3D visualization of freighter layout**
   - Separate renderer (e.g. three.js) stacking the floors
   - Cheap 2D precursor: "onion skin" showing the floor below faintly
@@ -47,6 +53,7 @@ Each step makes the next one cheaper, so the order matters.
 - [ ] Build cost summary: module counts + total materials as a shopping list
 - [ ] Mark which floors have content in the floor picker
 - [ ] Stairs/lifts between floors that must line up with the floor above/below (ties into validation)
+- [ ] Freighter type switch: capital freighter (21×21, 14 floors) vs system freighter (19×21, 15 floors)
 
 ## 🔧 Quality
 

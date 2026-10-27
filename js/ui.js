@@ -1,78 +1,12 @@
-import { FLOORS, MODULE_TYPES } from './data.js';
+import { FLOORS } from './data.js';
+import { MODULE_TYPES, CATEGORIES, EMPTY_ID } from './modules.js';
 
 /**
  * Builds the sidebar and wires up its controls.
  * Returns functions to update UI state from the app.
  */
 export function setupUI({ onSelectModule, onSelectFloor, onSave, onLoad, onExport, onImport, onUndo, onRedo }) {
-  // Palette
-  const paletteContainer = document.getElementById('modulePalette');
-  MODULE_TYPES.forEach(mod => {
-    const btn = document.createElement('div');
-    btn.className = 'module-btn';
-
-    // Convert numeric color → hex string
-    const colorHex = `#${mod.color.toString(16).padStart(6, '0')}`;
-
-    // Icon container (image or fallback)
-    const iconWrapper = document.createElement('div');
-    iconWrapper.className = 'icon-wrapper';
-    iconWrapper.style.width = '32px';
-    iconWrapper.style.height = '32px';
-    iconWrapper.style.borderRadius = '6px';
-    iconWrapper.style.flexShrink = '0';
-    iconWrapper.style.overflow = 'hidden';
-
-    if (mod.image) {
-      const img = document.createElement('img');
-      img.src = mod.image;
-      img.alt = mod.label;
-      img.width = 32;
-      img.height = 32;
-
-      // Fallback if image fails to load
-      img.onerror = () => {
-        iconWrapper.innerHTML = '';
-        const colorBlock = document.createElement('div');
-        colorBlock.className = 'color-fallback';
-        colorBlock.style.backgroundColor = colorHex;
-        colorBlock.style.width = '100%';
-        colorBlock.style.height = '100%';
-        colorBlock.style.borderRadius = '6px';
-        iconWrapper.appendChild(colorBlock);
-      };
-
-      iconWrapper.appendChild(img);
-    } else {
-      // No image → always fallback
-      const colorBlock = document.createElement('div');
-      colorBlock.className = 'color-fallback';
-      colorBlock.style.backgroundColor = colorHex;
-      colorBlock.style.width = '100%';
-      colorBlock.style.height = '100%';
-      colorBlock.style.borderRadius = '6px';
-      iconWrapper.appendChild(colorBlock);
-    }
-
-    // Label
-    const label = document.createElement('span');
-    label.textContent = mod.label;
-    label.className = 'module-label';
-
-    btn.appendChild(iconWrapper);
-    btn.appendChild(label);
-
-    // Selection behavior
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.module-btn').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      onSelectModule(mod);
-    });
-
-    // Via CSS variable so the .selected border can still override it
-    btn.style.setProperty('--module-color', colorHex);
-    paletteContainer.appendChild(btn);
-  });
+  buildPalette(onSelectModule);
 
   // Floor Selector
   const floorSelect = document.getElementById('floorSelect');
@@ -130,6 +64,103 @@ export function setupUI({ onSelectModule, onSelectFloor, onSave, onLoad, onExpor
       floorSelect.value = n;
     },
   };
+}
+
+/**
+ * Module palette: eraser on top, then one collapsible group per category,
+ * filtered by the search box.
+ */
+function buildPalette(onSelectModule) {
+  const paletteContainer = document.getElementById('modulePalette');
+  const buttons = [];
+
+  const addButton = (mod, parent) => {
+    const btn = createModuleButton(mod);
+
+    // Selection behavior
+    btn.addEventListener('click', () => {
+      buttons.forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      onSelectModule(mod);
+    });
+
+    buttons.push(btn);
+    parent.appendChild(btn);
+  };
+
+  addButton(MODULE_TYPES.find(m => m.id === EMPTY_ID), paletteContainer);
+
+  const groups = CATEGORIES.map(category => {
+    const group = document.createElement('details');
+    group.className = 'module-group';
+    group.open = true;
+
+    const summary = document.createElement('summary');
+    summary.textContent = category.label;
+    group.appendChild(summary);
+
+    MODULE_TYPES
+      .filter(m => m.category === category.id)
+      .forEach(mod => addButton(mod, group));
+
+    paletteContainer.appendChild(group);
+    return group;
+  });
+
+  // Search: hide non-matching modules and empty groups, open groups with matches
+  document.getElementById('moduleSearch').addEventListener('input', (e) => {
+    const query = e.target.value.trim().toLowerCase();
+
+    buttons.forEach(btn => {
+      btn.hidden = query !== '' && !btn.dataset.label.toLowerCase().includes(query);
+    });
+
+    groups.forEach(group => {
+      const hasMatches = [...group.querySelectorAll('.module-btn')].some(btn => !btn.hidden);
+      group.hidden = !hasMatches;
+      if (query && hasMatches) group.open = true;
+    });
+  });
+}
+
+/**
+ * Palette button: icon (image tinted with the module color, or a color
+ * block with the tile's short label) + name
+ */
+function createModuleButton(mod) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'module-btn';
+  btn.dataset.label = mod.label;
+  btn.title = mod.label;
+
+  // Convert numeric color → hex string
+  const colorHex = `#${mod.color.toString(16).padStart(6, '0')}`;
+
+  // Via CSS variable so the .selected border can still override it
+  btn.style.setProperty('--module-color', colorHex);
+
+  const icon = document.createElement('span');
+  icon.className = 'module-icon';
+  icon.style.backgroundColor = colorHex;
+
+  if (mod.icon) {
+    const img = document.createElement('img');
+    img.src = mod.icon;
+    img.alt = '';
+    img.onerror = () => img.remove(); // color block remains
+    icon.appendChild(img);
+  } else {
+    icon.textContent = mod.short;
+  }
+
+  const label = document.createElement('span');
+  label.className = 'module-label';
+  label.textContent = mod.label;
+
+  btn.appendChild(icon);
+  btn.appendChild(label);
+  return btn;
 }
 
 /**

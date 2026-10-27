@@ -3,9 +3,12 @@
 A browser-based planning tool for designing freighter layouts using a grid system.
 
 ## 🚀 Features
-- Multi-floor support (14 floors)
-- Drag & place modules
-- Rotation system (R key)
+- Multi-floor support (14 floors, 21×21 capital freighter grid)
+- 37 freighter modules from the game: corridors, stairs, exterior decks, High-Tech / Industrial / Agricultural rooms
+- Corridors shape themselves (straight, corner, T, cross) based on their neighbours
+- Grouped, searchable module palette
+- Drag & place modules; locked entrance ramp tile
+- Rotation system for stairs (R key)
 - Zoom & pan (mouse)
 - Save/load via localStorage
 - Export/import layout as JSON file (versioned format, older saves are upgraded automatically)
@@ -20,7 +23,8 @@ A browser-based planning tool for designing freighter layouts using a grid syste
 ## 🏗 Architecture
 The project is structured into clear layers:
 
-- `data.js` → state management & configuration
+- `data.js` → state management, configuration & save format
+- `modules.js` → freighter module definitions (game data)
 - `render.js` → PIXI rendering & interaction logic
 - `ui.js` → DOM-based UI
 - `history.js` → undo/redo history
@@ -31,7 +35,7 @@ Planned order:
 1. ~~Export/import layout as JSON file~~ ✅
 2. ~~Performance optimization (partial rendering instead of full redraw)~~ ✅
 3. ~~Undo/redo system~~ ✅
-4. Adding more modules to plan design
+4. ~~Adding more modules to plan design~~ ✅
 5. Module snapping / validation logic
 6. 3D visualization of freighter layout
 

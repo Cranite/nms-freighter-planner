@@ -1,4 +1,16 @@
-import { TILE_SIZE, GRID_SIZE, MODULE_TYPES, MODULE_BY_ID, EMPTY_ID } from './data.js';
+import { TILE_SIZE, GRID_SIZE, RAMP, isLockedTile } from './data.js';
+import { MODULE_BY_ID, connectsToCorridor } from './modules.js';
+
+/**
+ * Corridor textures per shape. At rotation 0 they connect:
+ * straight W+E, corner W+S, t W+E+S, cross all sides.
+ */
+const CORRIDOR_TEXTURES = {
+  straight: 'assets/modules/corridor_straight.png',
+  corner: 'assets/modules/corridor_corner.png',
+  t: 'assets/modules/corridor_t.png',
+  cross: 'assets/modules/corridor_cross.png',
+};
 
 const textureCache = {};
 
@@ -7,14 +19,11 @@ const textureCache = {};
  * Prevents repeated network calls.
  */
 async function loadTextures() {
-  for (const mod of MODULE_TYPES) {
-    if (!mod.image) continue;
-
+  for (const [shape, path] of Object.entries(CORRIDOR_TEXTURES)) {
     try {
-      const texture = await PIXI.Assets.load(mod.image);
-      textureCache[mod.id] = texture;
+      textureCache[shape] = await PIXI.Assets.load(path);
     } catch (err) {
-      console.warn(`⚠️ Missing texture for ${mod.id}, using color fallback`);
+      console.warn(`⚠️ Missing corridor texture '${shape}', using color fallback`);
     }
   }
 }
@@ -46,21 +55,27 @@ export async function createRenderer() {
  * Scene graph structure:
  * stageContainer
  *   ├─ grid            (static grid, single Graphics, receives pointer input)
+ *   ├─ bridgeLabel     (marks the bridge side of the grid)
+ *   ├─ rampMarker      (locked entrance ramp tile, floor 1 only)
  *   ├─ moduleContainer (placed modules, one display object per occupied cell)
  *   └─ ghost.container (preview module)
  */
 function initRenderer(app) {
   const grid = drawGrid();
+  const bridgeLabel = drawBridgeLabel();
+  const rampMarker = drawRampMarker();
   const moduleContainer = new PIXI.Container();
-  const ghost = createGhost();
   const stageContainer = new PIXI.Container();
 
+  const modules = createModuleLayer(moduleContainer, rampMarker);
+  const ghost = createGhost(modules.getFloor);
+
   stageContainer.addChild(grid);
+  stageContainer.addChild(bridgeLabel);
+  stageContainer.addChild(rampMarker);
   stageContainer.addChild(moduleContainer);
   stageContainer.addChild(ghost.container);
   app.stage.addChild(stageContainer);
-
-  const modules = createModuleLayer(moduleContainer);
 
   // Center and enable camera controls
   centerStage(stageContainer, app);
@@ -105,36 +120,165 @@ function drawGrid() {
   return g;
 }
 
+// Tile label text (module short names, markers)
+function createLabel(text, fontSize = Math.round(TILE_SIZE * 0.36)) {
+  const label = new PIXI.Text(text, {
+    fontFamily: 'sans-serif',
+    fontSize,
+    fontWeight: 'bold',
+    fill: 0xffffff,
+    stroke: 0x000000,
+    strokeThickness: 3,
+  });
+  label.anchor.set(0.5);
+  label.resolution = 2; // sharp when zoomed in
+  return label;
+}
+
+/**
+ * Marks the top of the grid as the bridge side (ramp entrance)
+ */
+function drawBridgeLabel() {
+  const label = createLabel('▲ Bridge', Math.round(TILE_SIZE * 0.4));
+  label.x = (GRID_SIZE * TILE_SIZE) / 2;
+  label.y = -TILE_SIZE * 0.6;
+  return label;
+}
+
+/**
+ * Locked entrance ramp tile (can't be built on)
+ */
+function drawRampMarker() {
+  const marker = new PIXI.Container();
+
+  const g = new PIXI.Graphics();
+  g.beginFill(0x1e8449);
+  g.drawRoundedRect(2, 2, TILE_SIZE - 4, TILE_SIZE - 4, 4);
+  g.endFill();
+  marker.addChild(g);
+
+  const label = createLabel('RAMP', Math.round(TILE_SIZE * 0.24));
+  label.position.set(TILE_SIZE / 2, TILE_SIZE / 2);
+  marker.addChild(label);
+
+  marker.position.set(RAMP.x * TILE_SIZE, RAMP.y * TILE_SIZE);
+  return marker;
+}
+
 // Degrees → radians
 const toRadians = (degrees) => (degrees || 0) * Math.PI / 180;
 
+// Neighbour directions as bit flags
+const N = 1, E = 2, S = 4, W = 8;
+const NEIGHBOURS = [[0, -1, N], [1, 0, E], [0, 1, S], [-1, 0, W]];
+
+// Rotates a direction mask clockwise in 90° steps (N→E→S→W→N)
+function rotateMask(mask, steps) {
+  for (let i = 0; i < steps; i++) mask = ((mask << 1) | (mask >> 3)) & 15;
+  return mask;
+}
+
+// Corridor textures and the sides they connect at rotation 0
+const CORRIDOR_SHAPES = [['cross', N | E | S | W], ['t', W | E | S], ['corner', W | S], ['straight', W | E]];
+
+/**
+ * Picks the corridor shape + rotation that connects exactly the given sides
+ */
+function corridorShape(mask) {
+  // Lone corridors and dead ends: straight piece along the connection
+  if (mask === 0 || mask === E || mask === W) return { shape: 'straight', rotation: 0 };
+  if (mask === N || mask === S) return { shape: 'straight', rotation: 90 };
+
+  for (const [shape, base] of CORRIDOR_SHAPES) {
+    for (let steps = 0; steps < 4; steps++) {
+      if (rotateMask(base, steps) === mask) return { shape, rotation: steps * 90 };
+    }
+  }
+}
+
+/**
+ * Sides of tile (x, y) with a neighbour a corridor connects to.
+ * The entrance ramp counts as connected.
+ */
+function corridorMask(floor, x, y) {
+  let mask = 0;
+
+  for (const [dx, dy, dir] of NEIGHBOURS) {
+    const nx = x + dx, ny = y + dy;
+    if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE) continue;
+
+    if (isLockedTile(floor.floor, nx, ny) || connectsToCorridor(MODULE_BY_ID[floor.tiles[ny][nx].type])) {
+      mask |= dir;
+    }
+  }
+  return mask;
+}
+
+/**
+ * How a module looks at tile (x, y):
+ * - key: objects with the same key only differ in rotation
+ * - shape: corridor texture (corridors only)
+ * - rotation: degrees
+ */
+function visualFor(modDef, floor, x, y, rotation) {
+  if (modDef.kind === 'corridor') {
+    const { shape, rotation: shapeRotation } = corridorShape(corridorMask(floor, x, y));
+    return { key: `${modDef.id}:${shape}`, shape, rotation: shapeRotation };
+  }
+
+  return { key: modDef.id, rotation: modDef.rotatable ? rotation : 0 };
+}
+
 /**
  * Creates the display object for a module, centered on tile (x, y).
- * Uses texture if available, fallback to colored rectangle otherwise.
+ * `obj.body` is the rotated part; the label stays upright.
  */
-function createModuleObject(modDef, x, y, rotation) {
-  const texture = textureCache[modDef.id];
-  let obj;
+function createModuleObject(modDef, visual, x, y) {
+  const obj = new PIXI.Container();
+  const texture = visual.shape && textureCache[visual.shape];
+  let body;
 
   if (texture) {
-    obj = new PIXI.Sprite(texture);
-
-    // Centered positioning (important for rotation)
-    obj.anchor.set(0.5);
-    obj.width = TILE_SIZE;
-    obj.height = TILE_SIZE;
+    // Corridor texture, colored by module (e.g. glass corridor)
+    body = new PIXI.Sprite(texture);
+    body.anchor.set(0.5);
+    body.width = TILE_SIZE;
+    body.height = TILE_SIZE;
+    body.tint = modDef.color;
 
   } else {
-    // Fallback: colored square, drawn around the center so rotation works the same
-    obj = new PIXI.Graphics();
-    obj.beginFill(modDef.color);
-    obj.drawRect(-TILE_SIZE / 2 + 2, -TILE_SIZE / 2 + 2, TILE_SIZE - 4, TILE_SIZE - 4);
-    obj.endFill();
+    // Colored square, drawn around the center so rotation works the same
+    const half = TILE_SIZE / 2;
+    body = new PIXI.Graphics();
+
+    // Exterior pieces get an outline (open deck outside the hull)
+    if (modDef.exterior) body.lineStyle(1, 0xffffff, 0.5);
+    body.beginFill(modDef.color);
+    body.drawRoundedRect(-half + 2, -half + 2, TILE_SIZE - 4, TILE_SIZE - 4, 4);
+    body.endFill();
+
+    // Stairs: arrowhead at the edge they climb towards (north at rotation 0),
+    // clear of the centered label
+    if (modDef.kind === 'stairs') {
+      const tip = -half + 3;
+      const base = tip + TILE_SIZE * 0.22;
+      const width = TILE_SIZE * 0.22;
+
+      body.lineStyle(0);
+      body.beginFill(0xffffff, 0.9);
+      body.drawPolygon([0, tip, width, base, -width, base]);
+      body.endFill();
+    }
   }
+
+  body.rotation = toRadians(visual.rotation);
+  obj.addChild(body);
+  obj.body = body;
+
+  if (modDef.short) obj.addChild(createLabel(modDef.short));
 
   obj.x = x * TILE_SIZE + TILE_SIZE / 2;
   obj.y = y * TILE_SIZE + TILE_SIZE / 2;
-  obj.rotation = toRadians(rotation);
 
   return obj;
 }
@@ -142,68 +286,89 @@ function createModuleObject(modDef, x, y, rotation) {
 /**
  * Placed modules layer.
  * Remembers the display object per cell, so only cells whose
- * module changed are rebuilt (partial rendering).
+ * look changed are rebuilt (partial rendering).
  */
-function createModuleLayer(container) {
-  // cells[y][x] = { type, obj } or null
+function createModuleLayer(container, rampMarker) {
+  // cells[y][x] = { key, obj } or null
   const cells = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
 
-  function drawTile(x, y, tile) {
+  // Floor currently shown
+  let floor = null;
+
+  function drawCell(x, y) {
     // Empty tiles and unknown module types render as nothing
+    const tile = floor.tiles[y][x];
     const modDef = MODULE_BY_ID[tile.type];
-    const type = modDef && modDef.id !== EMPTY_ID ? modDef.id : null;
+    const visual = modDef && modDef.kind !== 'eraser' ? visualFor(modDef, floor, x, y, tile.rotation) : null;
     const cell = cells[y][x];
 
-    if (!cell && !type) return;
+    if (!cell && !visual) return;
 
-    // Same module: at most the rotation changed
-    if (cell && cell.type === type) {
-      cell.obj.rotation = toRadians(tile.rotation);
+    // Same look: at most the rotation changed
+    if (cell && visual && cell.key === visual.key) {
+      cell.obj.body.rotation = toRadians(visual.rotation);
       return;
     }
 
-    // destroy() also removes it from the container
-    cell?.obj.destroy();
-    cells[y][x] = type
-      ? { type, obj: container.addChild(createModuleObject(modDef, x, y, tile.rotation)) }
+    // destroy() also removes it from the container; children incl. label textures
+    cell?.obj.destroy({ children: true });
+    cells[y][x] = visual
+      ? { key: visual.key, obj: container.addChild(createModuleObject(modDef, visual, x, y)) }
       : null;
   }
 
-  // Sync a whole floor (floor switch, load/import); unchanged cells are skipped
-  function drawFloor(floor) {
+  // Redraw a changed tile and its neighbours (corridor shapes depend on them)
+  function drawTile(x, y) {
+    drawCell(x, y);
+
+    for (const [dx, dy] of NEIGHBOURS) {
+      const nx = x + dx, ny = y + dy;
+      if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) drawCell(nx, ny);
+    }
+  }
+
+  // Show a whole floor (floor switch, load/import); unchanged cells are skipped
+  function drawFloor(newFloor) {
+    floor = newFloor;
+    rampMarker.visible = floor.floor === RAMP.floor;
+
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
-        drawTile(x, y, floor.tiles[y][x]);
+        drawCell(x, y);
       }
     }
   }
 
-  return { drawTile, drawFloor };
+  return { drawTile, drawFloor, getFloor: () => floor };
 }
 
 /**
  * Ghost preview of the selected module under the pointer.
- * The display object is reused and only rebuilt when the module changes.
+ * The display object is reused and only rebuilt when its look changes
+ * (other module, or another corridor shape).
  */
-function createGhost() {
+function createGhost(getFloor) {
   const container = new PIXI.Container();
   container.alpha = 0.5; // transparency
   container.visible = false;
 
-  let moduleId = null;
+  let key = null;
 
   function show(x, y, module, rotation) {
-    if (!module) return hide();
+    const floor = getFloor();
+    if (!module || !floor || isLockedTile(floor.floor, x, y)) return hide();
 
-    if (module.id !== moduleId) {
-      container.removeChildren().forEach(child => child.destroy());
-      container.addChild(createModuleObject(module, 0, 0, 0));
-      moduleId = module.id;
+    const visual = visualFor(module, floor, x, y, rotation);
+
+    if (visual.key !== key) {
+      container.removeChildren().forEach(child => child.destroy({ children: true }));
+      container.addChild(createModuleObject(module, visual, 0, 0));
+      key = visual.key;
     }
 
     // Object is centered on tile (0, 0); move the container to tile (x, y)
     container.position.set(x * TILE_SIZE, y * TILE_SIZE);
-    container.children[0].rotation = toRadians(rotation);
+    container.children[0].body.rotation = toRadians(visual.rotation);
     container.visible = true;
   }
 
@@ -213,6 +378,7 @@ function createGhost() {
 
   return { container, show, hide };
 }
+
 
 // Zoom + drag handling
 function setupZoomAndDrag(app, stageContainer) {

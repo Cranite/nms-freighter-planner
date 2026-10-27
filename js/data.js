@@ -1,4 +1,6 @@
-// Grid is square (21x21)
+import { MODULE_BY_ID, EMPTY_ID } from './modules.js';
+
+// Grid is square (21x21, capital freighter)
 export const GRID_SIZE = 21;
 
 // Number of floors in freighter
@@ -29,34 +31,16 @@ function calculateTileSize() {
 
 export const TILE_SIZE = calculateTileSize();
 
-// Module id that acts as an eraser
-export const EMPTY_ID = 'empty';
-
-
 /**
- * Defines all module types.
- * Each module has:
- * - id (internal identifier)
- * - label (UI display)
- * - color fallback (if texture fails)
- * - image (optional texture)
+ * Entrance ramp from the bridge: the one tile on a capital freighter
+ * that can't be built on. Floor 1, centre column, two rows from the
+ * bridge-side build limit (top of the grid = towards the bridge).
  */
-export const MODULE_TYPES = [
-  { id: 'corridor_1', label: 'Corridor straight', color: 0x3498db, image: 'assets/modules/corridor_straight.png' },
-  { id: 'corridor_2', label: 'Corridor corner', color: 0x3498db, image: 'assets/modules/corridor_corner.png' },
-  { id: 'corridor_3', label: 'Corridor t-junction', color: 0x3498db, image: 'assets/modules/corridor_t.png' },
-  { id: 'corridor_4', label: 'Corridor cross', color: 0x3498db, image: 'assets/modules/corridor_cross.png' },
-  // No textures yet → color fallback
-  { id: 'storage', label: 'Storage', color: 0xf1c40f, image: null },
-  { id: 'command', label: 'Command', color: 0x9b59b6, image: null },
-  { id: 'refiner', label: 'Refiner', color: 0xe67e22, image: null },
+export const RAMP = { floor: 1, x: (GRID_SIZE - 1) / 2, y: 2 };
 
-  // Eraser: placing it clears the tile
-  { id: EMPTY_ID, label: 'Empty', color: 0x1a1a1a, image: null },
-];
-
-// Lookup by id (undefined for unknown/removed module types)
-export const MODULE_BY_ID = Object.fromEntries(MODULE_TYPES.map(m => [m.id, m]));
+export function isLockedTile(floor, x, y) {
+  return floor === RAMP.floor && x === RAMP.x && y === RAMP.y;
+}
 
 const ROTATIONS = [0, 90, 180, 270];
 
@@ -87,14 +71,14 @@ export function createEmptyFreighter() {
  *
  * {
  *   app: 'nms-freighter-planner',
- *   version: 1,
+ *   version: 2,
  *   floors: [{ floor: 1, tiles: [[null | { type, rotation }, ...], ...] }, ...]
  * }
  *
- * Bump SAVE_VERSION when the format changes and add a migration
- * from the previous version to MIGRATIONS.
+ * Bump SAVE_VERSION when the format changes (incl. renamed module ids)
+ * and add a migration from the previous version to MIGRATIONS.
  */
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 const SAVE_APP_ID = 'nms-freighter-planner';
 const STORAGE_KEY = 'freighterLayout';
 
@@ -112,6 +96,30 @@ const MIGRATIONS = {
         : floor?.tiles,
     })),
   }),
+
+  // v1: placeholder modules → wiki-based modules (corridors now shape themselves)
+  1: (data) => ({
+    ...data,
+    floors: data.floors.map(floor => ({
+      ...floor,
+      tiles: Array.isArray(floor?.tiles)
+        ? floor.tiles.map(row => Array.isArray(row)
+          ? row.map(t => (t?.type && V1_MODULE_IDS[t.type] ? { type: V1_MODULE_IDS[t.type], rotation: 0 } : t))
+          : row)
+        : floor?.tiles,
+    })),
+  }),
+};
+
+// Old (v1) module id → new module id
+const V1_MODULE_IDS = {
+  corridor_1: 'freighter_corridor',
+  corridor_2: 'freighter_corridor',
+  corridor_3: 'freighter_corridor',
+  corridor_4: 'freighter_corridor',
+  storage: 'storage_room_0',
+  command: 'fleet_command_room',
+  refiner: 'refiner_room',
 };
 
 /**
@@ -176,15 +184,16 @@ export function deserializeFreighter(json) {
     floor.tiles.forEach((row, y) => {
       row.forEach((tile, x) => {
         const saved = savedRows[y]?.[x];
-        if (!saved?.type || saved.type === EMPTY_ID) return;
+        if (!saved?.type || saved.type === EMPTY_ID || isLockedTile(floor.floor, x, y)) return;
 
-        if (!MODULE_BY_ID[saved.type]) {
+        const modDef = MODULE_BY_ID[saved.type];
+        if (!modDef) {
           skipped++;
           return;
         }
 
         tile.type = saved.type;
-        tile.rotation = ROTATIONS.includes(saved.rotation) ? saved.rotation : 0;
+        tile.rotation = modDef.rotatable && ROTATIONS.includes(saved.rotation) ? saved.rotation : 0;
       });
     });
   });
