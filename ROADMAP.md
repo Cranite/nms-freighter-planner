@@ -9,9 +9,10 @@ Each step makes the next one cheaper, so the order matters.
 - [x] **1. Export/import layout as JSON file**
   - Add a `version` field to the save format + migration hook, so later data model changes can upgrade old saves
   - Format and migrations live in `js/data.js` (`SAVE_VERSION`, `MIGRATIONS`)
-- [ ] **2. Partial rendering instead of full redraw**
+- [x] **2. Partial rendering instead of full redraw**
   - Keep one sprite per cell, update only changed cells
   - Gives a per-cell layer for validation highlights later
+  - Grid is one Graphics with a single pointer handler (was 441 objects + handlers); fast drags fill skipped tiles
 - [ ] **3. Undo/redo system**
   - Record changes at the single mutation point (`applyDraw`)
   - A drag stroke undoes as one step

@@ -27,7 +27,7 @@ The project is structured into clear layers:
 ## 🔮 Future Improvements
 Planned order:
 1. ~~Export/import layout as JSON file~~ ✅
-2. Performance optimization (partial rendering instead of full redraw)
+2. ~~Performance optimization (partial rendering instead of full redraw)~~ ✅
 3. Undo/redo system
 4. Adding more modules to plan design
 5. Module snapping / validation logic

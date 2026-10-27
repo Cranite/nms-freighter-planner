@@ -27,7 +27,7 @@ setupUI({
     currentFloor = n;
 
     // Redraw selected floor
-    renderer.drawModules(freighter.floors[currentFloor - 1]);
+    renderer.drawFloor(freighter.floors[currentFloor - 1]);
   },
 
   onSave: () => {
@@ -76,7 +76,7 @@ setupUI({
  */
 function replaceFreighter({ freighter: loaded }) {
   freighter = loaded;
-  renderer.drawModules(freighter.floors[currentFloor - 1]);
+  renderer.drawFloor(freighter.floors[currentFloor - 1]);
 }
 
 /**
@@ -110,8 +110,8 @@ function applyDraw(x, y, mode) {
     tile.rotation = 0;
   }
 
-  // Re-render after change
-  renderer.drawModules(freighter.floors[currentFloor - 1]);
+  // Re-render only the changed tile
+  renderer.drawTile(x, y, tile);
 }
 
 // Setup pointer interaction
@@ -123,4 +123,4 @@ renderer.setupInteraction(
 );
 
 // Initial render
-renderer.drawModules(freighter.floors[currentFloor - 1]);
+renderer.drawFloor(freighter.floors[currentFloor - 1]);

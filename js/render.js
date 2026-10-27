@@ -45,22 +45,22 @@ export async function createRenderer() {
 /**
  * Scene graph structure:
  * stageContainer
- *   ├─ gridContainer   (static grid)
- *   ├─ moduleContainer (placed modules)
- *   └─ ghostContainer  (preview module)
+ *   ├─ grid            (static grid, single Graphics, receives pointer input)
+ *   ├─ moduleContainer (placed modules, one display object per occupied cell)
+ *   └─ ghost.container (preview module)
  */
 function initRenderer(app) {
-  const gridContainer = new PIXI.Container();
+  const grid = drawGrid();
   const moduleContainer = new PIXI.Container();
-  const ghostContainer = new PIXI.Container();
+  const ghost = createGhost();
   const stageContainer = new PIXI.Container();
 
-  stageContainer.addChild(gridContainer);
+  stageContainer.addChild(grid);
   stageContainer.addChild(moduleContainer);
-  stageContainer.addChild(ghostContainer);
+  stageContainer.addChild(ghost.container);
   app.stage.addChild(stageContainer);
 
-  drawGrid(gridContainer);
+  const modules = createModuleLayer(moduleContainer);
 
   // Center and enable camera controls
   centerStage(stageContainer, app);
@@ -81,120 +81,137 @@ function initRenderer(app) {
   }).observe(app.view.parentElement);
 
   return {
-    drawModules: (floor) => drawModules(moduleContainer, floor),
-    setupInteraction: (applyDraw, getModule, getRotation, setRotation) => setupInteraction(gridContainer, applyDraw, getModule, getRotation, setRotation, ghostContainer),
-    drawGhost: (tileX, tileY, module, rotation) => drawGhost(ghostContainer, tileX, tileY, module, rotation),
+    drawFloor: modules.drawFloor,
+    drawTile: modules.drawTile,
+    setupInteraction: (applyDraw, getModule, getRotation, setRotation) => setupInteraction(grid, applyDraw, getModule, getRotation, setRotation, ghost),
   };
 }
 
 /**
- * Draw empty grid
+ * Draw empty grid as a single Graphics object
  */
-function drawGrid(container) {
+function drawGrid() {
+  const g = new PIXI.Graphics();
+  g.lineStyle(1, 0x333333);
+  g.beginFill(0x1a1a1a);
+
   for (let y = 0; y < GRID_SIZE; y++) {
     for (let x = 0; x < GRID_SIZE; x++) {
-      const g = new PIXI.Graphics();
-      g.lineStyle(1, 0x333333);
-      g.beginFill(0x1a1a1a);
       g.drawRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-      g.endFill();
-      container.addChild(g);
     }
   }
+
+  g.endFill();
+  return g;
+}
+
+// Degrees → radians
+const toRadians = (degrees) => (degrees || 0) * Math.PI / 180;
+
+/**
+ * Creates the display object for a module, centered on tile (x, y).
+ * Uses texture if available, fallback to colored rectangle otherwise.
+ */
+function createModuleObject(modDef, x, y, rotation) {
+  const texture = textureCache[modDef.id];
+  let obj;
+
+  if (texture) {
+    obj = new PIXI.Sprite(texture);
+
+    // Centered positioning (important for rotation)
+    obj.anchor.set(0.5);
+    obj.width = TILE_SIZE;
+    obj.height = TILE_SIZE;
+
+  } else {
+    // Fallback: colored square, drawn around the center so rotation works the same
+    obj = new PIXI.Graphics();
+    obj.beginFill(modDef.color);
+    obj.drawRect(-TILE_SIZE / 2 + 2, -TILE_SIZE / 2 + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+    obj.endFill();
+  }
+
+  obj.x = x * TILE_SIZE + TILE_SIZE / 2;
+  obj.y = y * TILE_SIZE + TILE_SIZE / 2;
+  obj.rotation = toRadians(rotation);
+
+  return obj;
 }
 
 /**
- * Renders all modules for a floor.
- * Uses texture if available, fallback to colored rectangle otherwise.
+ * Placed modules layer.
+ * Remembers the display object per cell, so only cells whose
+ * module changed are rebuilt (partial rendering).
  */
-function drawModules(container, floor) {
-  // Destroy old display objects (removing alone leaks GPU geometry)
-  container.removeChildren().forEach(child => child.destroy());
+function createModuleLayer(container) {
+  // cells[y][x] = { type, obj } or null
+  const cells = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
 
-  for (let y = 0; y < GRID_SIZE; y++) {
-    for (let x = 0; x < GRID_SIZE; x++) {
+  function drawTile(x, y, tile) {
+    // Empty tiles and unknown module types render as nothing
+    const modDef = MODULE_BY_ID[tile.type];
+    const type = modDef && modDef.id !== EMPTY_ID ? modDef.id : null;
+    const cell = cells[y][x];
 
-      const tile = floor.tiles[y][x];
+    if (!cell && !type) return;
 
-      // Skip empty tiles and unknown module types
-      const modDef = MODULE_BY_ID[tile.type];
-      if (!modDef || modDef.id === EMPTY_ID) continue;
+    // Same module: at most the rotation changed
+    if (cell && cell.type === type) {
+      cell.obj.rotation = toRadians(tile.rotation);
+      return;
+    }
 
-      const texture = textureCache[tile.type];
+    // destroy() also removes it from the container
+    cell?.obj.destroy();
+    cells[y][x] = type
+      ? { type, obj: container.addChild(createModuleObject(modDef, x, y, tile.rotation)) }
+      : null;
+  }
 
-      if (texture) {
-        const sprite = new PIXI.Sprite(texture);
-
-        // Centered positioning (important for rotation)
-        sprite.anchor.set(0.5);
-
-        sprite.x = x * TILE_SIZE + TILE_SIZE / 2;
-        sprite.y = y * TILE_SIZE + TILE_SIZE / 2;
-
-        sprite.width = TILE_SIZE;
-        sprite.height = TILE_SIZE;
-
-        // Convert degrees → radians
-        sprite.rotation = (tile.rotation || 0) * Math.PI / 180;
-
-        container.addChild(sprite);
-
-      } else {
-        // Fallback rendering
-        const g = new PIXI.Graphics();
-        g.beginFill(modDef.color || 0x33aaff);
-        g.drawRect(
-          x * TILE_SIZE + 2,
-          y * TILE_SIZE + 2,
-          TILE_SIZE - 4,
-          TILE_SIZE - 4
-        );
-        g.endFill();
-
-        container.addChild(g);
+  // Sync a whole floor (floor switch, load/import); unchanged cells are skipped
+  function drawFloor(floor) {
+    for (let y = 0; y < GRID_SIZE; y++) {
+      for (let x = 0; x < GRID_SIZE; x++) {
+        drawTile(x, y, floor.tiles[y][x]);
       }
     }
   }
+
+  return { drawTile, drawFloor };
 }
 
-
 /**
- * Draw ghost module on grid
+ * Ghost preview of the selected module under the pointer.
+ * The display object is reused and only rebuilt when the module changes.
  */
-function drawGhost(container, x, y, module, rotation) {
-  if (!container) return;
-  container.removeChildren().forEach(child => child.destroy());
-  
-  if (!module) return;
+function createGhost() {
+  const container = new PIXI.Container();
+  container.alpha = 0.5; // transparency
+  container.visible = false;
 
-  const texture = textureCache[module.id];
+  let moduleId = null;
 
-  let sprite;
+  function show(x, y, module, rotation) {
+    if (!module) return hide();
 
-  if (texture) {
-    sprite = new PIXI.Sprite(texture);
-  } else {
-    // fallback color block
-    sprite = new PIXI.Graphics();
-    sprite.beginFill(module.color || 0xffffff, 0.5);
-    sprite.drawRect(-TILE_SIZE/2, -TILE_SIZE/2, TILE_SIZE, TILE_SIZE);
-    sprite.endFill();
+    if (module.id !== moduleId) {
+      container.removeChildren().forEach(child => child.destroy());
+      container.addChild(createModuleObject(module, 0, 0, 0));
+      moduleId = module.id;
+    }
+
+    // Object is centered on tile (0, 0); move the container to tile (x, y)
+    container.position.set(x * TILE_SIZE, y * TILE_SIZE);
+    container.children[0].rotation = toRadians(rotation);
+    container.visible = true;
   }
 
-  // Center-based positioning
-  sprite.anchor?.set?.(0.5);
+  function hide() {
+    container.visible = false;
+  }
 
-  sprite.x = x * TILE_SIZE + TILE_SIZE / 2;
-  sprite.y = y * TILE_SIZE + TILE_SIZE / 2;
-
-  sprite.width = TILE_SIZE;
-  sprite.height = TILE_SIZE;
-
-  sprite.alpha = 0.5; // transparency
-
-  sprite.rotation = (rotation || 0) * Math.PI / 180;
-
-  container.addChild(sprite);
+  return { container, show, hide };
 }
 
 // Zoom + drag handling
@@ -309,12 +326,14 @@ function centerStage(stageContainer, app) {
  * - Shift + click = remove
  * - Drag = continuous drawing
  * - R = rotate module
+ *
+ * One pointer handler on the grid works out the tile under the pointer.
  */
-function setupInteraction(container, applyDraw, getModule, getRotation, setRotation, ghostContainer) {
+function setupInteraction(grid, applyDraw, getModule, getRotation, setRotation, ghost) {
   let isDrawing = false;
-  let drawMode = 'place';
 
-  let hoverTile = { x: null, y: null };
+  let hoverTile = null; // { x, y } under the pointer
+  let lastDrawn = null; // last tile drawn in the current stroke
 
   // Rotation hotkey
   window.addEventListener('keydown', (e) => {
@@ -327,45 +346,84 @@ function setupInteraction(container, applyDraw, getModule, getRotation, setRotat
       setRotation(newRotation);
 
       // Update ghost preview
-      if (hoverTile.x !== null) {
-        drawGhost(ghostContainer, hoverTile.x, hoverTile.y, getModule(), getRotation());
+      if (hoverTile) {
+        ghost.show(hoverTile.x, hoverTile.y, getModule(), getRotation());
       }
     }
   });
 
-  container.interactiveChildren = true;
+  grid.eventMode = 'static';
+  grid.hitArea = new PIXI.Rectangle(0, 0, GRID_SIZE * TILE_SIZE, GRID_SIZE * TILE_SIZE);
 
-  container.children.forEach((g, index) => {
-    const x = index % GRID_SIZE;
-    const y = Math.floor(index / GRID_SIZE);
+  // Pointer position → tile coordinates (null outside the grid)
+  const tileAt = (e) => {
+    const pos = grid.toLocal(e.global);
+    const x = Math.floor(pos.x / TILE_SIZE);
+    const y = Math.floor(pos.y / TILE_SIZE);
+    return x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE ? { x, y } : null;
+  };
 
-    g.interactive = true;
-    g.on('pointerdown', (e) => {
-      if (e.button !== 0) return;
-      isDrawing = true;
-      drawMode = e.data.originalEvent.shiftKey ? 'remove' : 'place';
-      applyDraw(x, y, drawMode);
-    });
-    g.on('pointerover', (e) => {
-      hoverTile.x = x;
-      hoverTile.y = y;
+  const drawTo = (tile, e) => {
+    const mode = e.shiftKey ? 'remove' : 'place';
 
-      drawGhost(ghostContainer, x, y, getModule(), getRotation());
+    // Also draw tiles skipped by fast pointer movement
+    for (const t of tilesBetween(lastDrawn ?? tile, tile)) {
+      applyDraw(t.x, t.y, mode);
+    }
+    lastDrawn = tile;
+  };
 
-      if (isDrawing) {
-        drawMode = e.data.originalEvent.shiftKey ? 'remove' : 'place';
-        applyDraw(x, y, drawMode);
-      }
-    });
-    g.on('pointerup', () => (isDrawing = false));
-    g.on('pointerupoutside', () => (isDrawing = false));
+  const leaveGrid = () => {
+    hoverTile = null;
+    lastDrawn = null; // don't connect strokes across the outside of the grid
+    ghost.hide();
+  };
+
+  grid.on('pointerdown', (e) => {
+    if (e.button !== 0) return;
+
+    const tile = tileAt(e);
+    if (!tile) return;
+
+    isDrawing = true;
+    lastDrawn = null;
+    drawTo(tile, e);
   });
 
-  container.on('pointerout', () => { 
-    hoverTile.x = null;
-    hoverTile.y = null;
-    drawGhost(ghostContainer, null, null, null, null); 
+  grid.on('pointermove', (e) => {
+    const tile = tileAt(e);
+    if (!tile) return leaveGrid();
+
+    // Only act when entering a new tile
+    if (hoverTile && hoverTile.x === tile.x && hoverTile.y === tile.y) return;
+    hoverTile = tile;
+
+    ghost.show(tile.x, tile.y, getModule(), getRotation());
+
+    if (isDrawing) drawTo(tile, e);
   });
+
+  grid.on('pointerout', leaveGrid);
+  grid.on('pointerup', () => (isDrawing = false));
+  grid.on('pointerupoutside', () => (isDrawing = false));
 
   window.addEventListener('mouseup', () => (isDrawing = false));
+}
+
+/**
+ * Tiles on a straight line from `from` (exclusive) to `to` (inclusive).
+ * Returns just `to` when both are the same tile.
+ */
+function tilesBetween(from, to) {
+  const steps = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y));
+  if (steps === 0) return [to];
+
+  const tiles = [];
+  for (let i = 1; i <= steps; i++) {
+    tiles.push({
+      x: Math.round(from.x + (to.x - from.x) * i / steps),
+      y: Math.round(from.y + (to.y - from.y) * i / steps),
+    });
+  }
+  return tiles;
 }
