@@ -96,6 +96,14 @@ function replaceFreighter({ freighter: loaded }) {
   history.recordLayout(freighter, loaded);
   freighter = loaded;
   renderer.drawFloor(freighter.floors[currentFloor - 1]);
+  onLayoutChanged();
+}
+
+/**
+ * Called after every change to the layout (drawing, undo/redo, load/import)
+ */
+function onLayoutChanged() {
+  ui.setFloorsWithContent(freighter.floors.map(floor => floor.tiles.some(row => row.some(tile => tile.type))));
 }
 
 /**
@@ -106,6 +114,7 @@ function applyHistoryEntry(entry, side) {
   if (entry.kind === 'layout') {
     freighter = entry[side];
     renderer.drawFloor(freighter.floors[currentFloor - 1]);
+    onLayoutChanged();
     return;
   }
 
@@ -125,6 +134,8 @@ function applyHistoryEntry(entry, side) {
     ui.setFloor(currentFloor);
     renderer.drawFloor(floor);
   }
+
+  onLayoutChanged();
 }
 
 /**
@@ -170,6 +181,7 @@ function applyDraw(x, y, mode) {
 
   // Re-render only the changed tile (and neighbours whose corridor shape may change)
   renderer.drawTile(x, y);
+  onLayoutChanged();
 }
 
 // Setup pointer interaction
@@ -183,3 +195,4 @@ renderer.setupInteraction(
 
 // Initial render
 renderer.drawFloor(freighter.floors[currentFloor - 1]);
+onLayoutChanged();

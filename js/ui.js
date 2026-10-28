@@ -63,6 +63,14 @@ export function setupUI({ onSelectModule, onSelectFloor, onSave, onLoad, onExpor
     setFloor(n) {
       floorSelect.value = n;
     },
+
+    // Mark floors that have modules on them: "Floor 3 •"
+    setFloorsWithContent(hasContent) {
+      [...floorSelect.options].forEach((opt, i) => {
+        const text = `Floor ${i + 1}${hasContent[i] ? ' •' : ''}`;
+        if (opt.textContent !== text) opt.textContent = text;
+      });
+    },
   };
 }
 

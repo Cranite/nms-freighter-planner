@@ -51,7 +51,7 @@ Each step makes the next one cheaper, so the order matters.
 ## 🧭 Planning helpers
 
 - [ ] Build cost summary: module counts + total materials as a shopping list
-- [ ] Mark which floors have content in the floor picker
+- [x] Mark which floors have content in the floor picker
 - [ ] Stairs/lifts between floors that must line up with the floor above/below (ties into validation)
 - [ ] Freighter type switch: capital freighter (21×21, 14 floors) vs system freighter (19×21, 15 floors)
 
