@@ -35,7 +35,7 @@ Each step makes the next one cheaper, so the order matters.
 ## 💾 Saving & sharing
 
 - [ ] Share by link: compress layout into the URL `#hash` (no server needed, works on GitHub Pages)
-- [ ] Auto-save
+- [x] Auto-save (own slot, separate from the Save/Load checkpoint; plus a "New layout" button)
 - [ ] Multiple named save slots
 - [ ] Export floor (or all floors side by side) as PNG
 

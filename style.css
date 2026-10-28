@@ -132,6 +132,12 @@ button {
   font-size: 0.8rem;
 }
 
+.hint {
+  margin: 6px 0 2px;
+  font-size: 0.75rem;
+  color: #888;
+}
+
 /* Controls overview: action left, keys right */
 #controls {
   margin: 0;

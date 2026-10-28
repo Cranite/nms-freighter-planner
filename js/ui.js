@@ -5,7 +5,7 @@ import { MODULE_TYPES, CATEGORIES, EMPTY_ID } from './modules.js';
  * Builds the sidebar and wires up its controls.
  * Returns functions to update UI state from the app.
  */
-export function setupUI({ onSelectModule, onSelectFloor, onSave, onLoad, onExport, onImport, onUndo, onRedo }) {
+export function setupUI({ onSelectModule, onSelectFloor, onNew, onSave, onLoad, onExport, onImport, onUndo, onRedo }) {
   buildPalette(onSelectModule);
 
   // Floor Selector
@@ -19,6 +19,7 @@ export function setupUI({ onSelectModule, onSelectFloor, onSave, onLoad, onExpor
   floorSelect.addEventListener('change', e => onSelectFloor(parseInt(e.target.value)));
 
   // Buttons
+  document.getElementById('newBtn').addEventListener('click', onNew);
   document.getElementById('saveBtn').addEventListener('click', onSave);
   document.getElementById('loadBtn').addEventListener('click', onLoad);
   document.getElementById('exportBtn').addEventListener('click', onExport);

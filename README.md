@@ -10,7 +10,8 @@ A browser-based planning tool for designing freighter layouts using a grid syste
 - Drag & place modules; locked entrance ramp tile
 - Rotation system for stairs (R key)
 - Zoom & pan (mouse)
-- Save/load via localStorage
+- Auto-save: your current work is restored when you come back (stored in this browser only)
+- Save/load a checkpoint via localStorage; "New layout" starts fresh (undoable)
 - Export/import layout as JSON file (versioned format, older saves are upgraded automatically)
 - Undo/redo (Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z) — a drag undoes as one step, load/import can be undone too
 - Texture-based rendering with fallback colors

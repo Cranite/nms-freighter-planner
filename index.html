@@ -38,9 +38,11 @@
 
     <hr>
 
-    <!-- Persistence controls -->
-    <button id="saveBtn">💾 Save</button>
-    <button id="loadBtn">📂 Load</button>
+    <!-- Persistence controls. Current work is auto-saved; Save/Load is a manual checkpoint -->
+    <p class="hint">Your work is saved automatically in this browser.</p>
+    <button id="newBtn">🗒️ New layout</button>
+    <button id="saveBtn" title="Store a checkpoint you can return to with Load">💾 Save checkpoint</button>
+    <button id="loadBtn" title="Return to the last saved checkpoint">📂 Load checkpoint</button>
 
     <!-- File export/import (JSON) -->
     <button id="exportBtn">⬇️ Export file</button>

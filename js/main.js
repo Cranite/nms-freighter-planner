@@ -1,5 +1,5 @@
 import {
-  createEmptyFreighter, saveFreighter, loadFreighter,
+  createEmptyFreighter, saveFreighter, loadFreighter, autosaveFreighter, loadAutosave,
   serializeFreighter, deserializeFreighter, isLockedTile,
 } from './data.js';
 import { EMPTY_ID } from './modules.js';
@@ -7,8 +7,8 @@ import { setupUI, downloadTextFile } from './ui.js';
 import { createRenderer } from './render.js';
 import { createHistory } from './history.js';
 
-// Application state
-let freighter = createEmptyFreighter();
+// Application state; continues where the last session left off (auto-save)
+let freighter = loadAutosave() ?? createEmptyFreighter();
 let currentFloor = 1;
 
 // Currently selected module + rotation
@@ -34,6 +34,13 @@ const ui = setupUI({
 
     // Redraw selected floor
     renderer.drawFloor(freighter.floors[currentFloor - 1]);
+  },
+
+  onNew: () => {
+    const hasContent = floorsWithContent().some(Boolean);
+    if (hasContent && !confirm('Start a new, empty layout? (Ctrl+Z undoes this)')) return;
+
+    replaceFreighter({ freighter: createEmptyFreighter() });
   },
 
   onSave: () => {
@@ -103,8 +110,38 @@ function replaceFreighter({ freighter: loaded }) {
  * Called after every change to the layout (drawing, undo/redo, load/import)
  */
 function onLayoutChanged() {
-  ui.setFloorsWithContent(freighter.floors.map(floor => floor.tiles.some(row => row.some(tile => tile.type))));
+  ui.setFloorsWithContent(floorsWithContent());
+  scheduleAutosave();
 }
+
+// Per floor: does it have any module on it?
+function floorsWithContent() {
+  return freighter.floors.map(floor => floor.tiles.some(row => row.some(tile => tile.type)));
+}
+
+/**
+ * Auto-save, debounced: a drag changes many tiles in a row, so save
+ * once things are quiet, and right away when the page is left.
+ */
+const AUTOSAVE_DELAY = 500; // ms
+let autosaveTimer = null;
+
+function scheduleAutosave() {
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(flushAutosave, AUTOSAVE_DELAY);
+}
+
+function flushAutosave() {
+  clearTimeout(autosaveTimer);
+  autosaveTimer = null;
+  autosaveFreighter(freighter);
+}
+
+// Closing or switching away from the tab: don't lose the last change
+window.addEventListener('pagehide', () => { if (autosaveTimer) flushAutosave(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && autosaveTimer) flushAutosave();
+});
 
 /**
  * Restores the before (undo) or after (redo) state of a history entry

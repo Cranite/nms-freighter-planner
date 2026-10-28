@@ -81,6 +81,7 @@ export function createEmptyFreighter() {
 export const SAVE_VERSION = 2;
 const SAVE_APP_ID = 'nms-freighter-planner';
 const STORAGE_KEY = 'freighterLayout';
+const AUTOSAVE_KEY = 'freighterAutosave';
 
 /**
  * Migrations: MIGRATIONS[n] upgrades version n → n + 1
@@ -215,4 +216,30 @@ export function saveFreighter(freighter) {
 export function loadFreighter() {
   const raw = localStorage.getItem(STORAGE_KEY);
   return raw ? deserializeFreighter(raw) : null;
+}
+
+/**
+ * Auto-save: the current work, kept in its own slot so the manual
+ * Save/Load checkpoint isn't overwritten.
+ * Failures (storage full or blocked) only warn; the app keeps working.
+ */
+export function autosaveFreighter(freighter) {
+  try {
+    localStorage.setItem(AUTOSAVE_KEY, serializeFreighter(freighter));
+  } catch (err) {
+    console.warn('⚠️ Auto-save failed', err);
+  }
+}
+
+/**
+ * Restores the auto-saved layout; null if there is none or it's unusable
+ */
+export function loadAutosave() {
+  try {
+    const raw = localStorage.getItem(AUTOSAVE_KEY);
+    return raw ? deserializeFreighter(raw).freighter : null;
+  } catch (err) {
+    console.warn('⚠️ Auto-saved layout could not be restored', err);
+    return null;
+  }
 }
