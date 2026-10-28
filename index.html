@@ -47,8 +47,16 @@
     <button id="importBtn">⬆️ Import file</button>
     <input type="file" id="importInput" accept=".json,application/json" hidden>
 
-    <!-- UX hint -->
-    <p>Scroll to zoom, click or drag to place module.</p>
+    <!-- Controls overview -->
+    <h3>Controls</h3>
+    <ul id="controls">
+      <li><span>Place module</span> <span><kbd>Click</kbd> / drag</span></li>
+      <li><span>Remove</span> <span><kbd>Shift</kbd> + click</span></li>
+      <li><span>Rotate stairs</span> <kbd>R</kbd></li>
+      <li><span>Undo / redo</span> <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd></span></li>
+      <li><span>Zoom</span> <kbd>Scroll</kbd></li>
+      <li><span>Pan</span> <span><kbd>Middle</kbd> drag</span></li>
+    </ul>
   </div>
 
   <!-- PIXI canvas is injected here -->

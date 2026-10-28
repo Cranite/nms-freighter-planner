@@ -61,4 +61,4 @@ Each step makes the next one cheaper, so the order matters.
 - [ ] Palette buttons as real `<button>` elements (keyboard accessible)
 - [ ] Touch support: pinch zoom, two-finger pan
 - [ ] Unit tests for non-drawing logic (save loading, validation, undo)
-- [ ] Update in-app hint text with all controls (Shift+click remove, R rotate, middle-drag pan)
+- [x] Update in-app hint text with all controls (Shift+click remove, R rotate, middle-drag pan)

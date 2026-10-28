@@ -131,3 +131,30 @@ button {
   flex: 1;
   font-size: 0.8rem;
 }
+
+/* Controls overview: action left, keys right */
+#controls {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+#controls li {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+kbd {
+  padding: 0 4px;
+  border: 1px solid #444;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: #222;
+  color: #ddd;
+  font-family: inherit;
+  font-size: 0.7rem;
+}
