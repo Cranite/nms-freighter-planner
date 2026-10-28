@@ -57,7 +57,7 @@ Each step makes the next one cheaper, so the order matters.
 
 ## 🔧 Quality
 
-- [ ] Pin PIXI to an exact version (currently `pixi.js@7`)
+- [x] Pin PIXI to an exact version (7.4.3, with integrity hash)
 - [ ] Palette buttons as real `<button>` elements (keyboard accessible)
 - [ ] Touch support: pinch zoom, two-finger pan
 - [ ] Unit tests for non-drawing logic (save loading, validation, undo)

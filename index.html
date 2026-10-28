@@ -9,8 +9,11 @@
   <!-- Main stylesheet -->
   <link rel="stylesheet" href="style.css">
 
-  <!-- PIXI.js rendering engine (GPU accelerated canvas) -->
-  <script src="https://cdn.jsdelivr.net/npm/pixi.js@7/dist/pixi.min.js"></script>
+  <!-- PIXI.js rendering engine (GPU accelerated canvas).
+       Pinned version + integrity hash: the browser refuses the file if it ever differs. -->
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.3/dist/pixi.min.js"
+          integrity="sha384-WVl0NBPVrXQHe0ibelECk5mPNUeme+2xVETxTzCdadGWyMDQxkqadnrd+yLqd4yg"
+          crossorigin="anonymous"></script>
 </head>
 <body>
   <!-- Sidebar UI (controls, module selection, save/load) -->
