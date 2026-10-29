@@ -4,7 +4,8 @@ A browser-based planning tool for designing freighter layouts using a grid syste
 
 ## 🚀 Features
 - Multi-floor support (14 floors, 21×21 capital freighter grid)
-- 37 freighter modules from the game: corridors, stairs, exterior decks, High-Tech / Industrial / Agricultural rooms
+- 40 freighter modules from the game: corridors, stairs, exterior decks, High-Tech / Industrial / Agricultural rooms
+- Stairs span 2 tiles and 2 floors, like in the game; occupied tiles can't be built on
 - Corridors shape themselves (straight, corner, T, cross) based on their neighbours
 - Grouped, searchable module palette
 - Drag & place modules; locked entrance ramp tile
@@ -26,6 +27,7 @@ The project is structured into clear layers:
 
 - `data.js` → state management, configuration & save format
 - `modules.js` → freighter module definitions (game data)
+- `footprint.js` → which tiles a module covers (stairs: 2 tiles on 2 floors) and where it can be placed
 - `render.js` → PIXI rendering & interaction logic
 - `ui.js` → DOM-based UI
 - `history.js` → undo/redo history

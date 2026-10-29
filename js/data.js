@@ -156,6 +156,9 @@ export function deserializeFreighter(json) {
           return;
         }
 
+        // Stairs on the top floor have nothing to climb to
+        if (modDef.kind === 'stairs' && floor.floor === FLOORS) return;
+
         tile.type = saved.type;
         tile.rotation = modDef.rotatable && ROTATIONS.includes(saved.rotation) ? saved.rotation : 0;
       });

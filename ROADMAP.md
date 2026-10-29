@@ -18,10 +18,11 @@ Each step makes the next one cheaper, so the order matters.
   - A drag stroke undoes as one step
   - Load/import are undoable; undo on another floor switches to that floor; 100 steps kept (`js/history.js`)
 - [x] **4. More modules**
-  - 37 modules from the wiki's Freighter Base Building list (`js/modules.js`), grouped by category, searchable palette
+  - 40 modules from the wiki's Freighter Base Building list, checked in-game incl. newer Passageway, Commercial Room (Expansion) and Steel Staircase (`js/modules.js`), grouped by category, searchable palette
   - Corridors shape themselves from their neighbours (as in the game since Endurance); rotation only for stairs
   - Locked entrance ramp tile on floor 1
-  - Open question: do stairs take a tile on both floors they connect? (currently one tile + direction)
+  - Stairs cover 2 tiles on their floor and the same 2 above (checked in-game); stored once at the low end (`js/footprint.js`)
+  - Open question: how many tiles/floors does the Ladder Module take? (currently 1 tile)
 - [ ] **5. Module snapping / validation**
   - Start with highlighting problems (corridor opening into a wall, unreachable rooms), auto-snapping later
   - Each Storage Room number (0–9) only once per freighter

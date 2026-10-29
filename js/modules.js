@@ -2,9 +2,14 @@
  * Freighter base building modules.
  *
  * Source: No Man's Sky wiki, "Freighter Base Building" (Endurance, 2022),
+ * checked against the in-game build menu and research tree (Oct 2026),
  * excluding small-scale technology, plants, furnishings, decoration,
  * wall art and legacy structures. Wall pieces (Internal Wall, Bulkhead
  * Door, Reinforced Window) sit between tiles and are not included yet.
+ * "Expansion Room Variant" is left out: a reskin of Industrial Room (Expansion).
+ *
+ * Stairs span 2 tiles in their climb direction on their own floor and
+ * the same 2 tiles on the floor above (see footprint.js).
  *
  * Each module has:
  * - id        internal identifier, stored in saves (don't rename without a save migration)
@@ -43,12 +48,15 @@ export const MODULE_TYPES = [
   // Structure
   { id: 'freighter_corridor', label: 'Freighter Corridor', short: '', category: 'structure', kind: 'corridor', color: 0x9fc6e8, icon: 'assets/modules/corridor_cross.png' },
   { id: 'glass_corridor', label: 'Freighter Glass Corridor', short: '', category: 'structure', kind: 'corridor', color: 0x76e4f2, icon: 'assets/modules/corridor_cross.png' },
+  { id: 'freighter_passageway', label: 'Freighter Passageway', short: '', category: 'structure', kind: 'corridor', color: 0xb9a7d6, icon: 'assets/modules/corridor_cross.png' },
   { id: 'freighter_stairs', label: 'Freighter Stairs', short: 'ST', category: 'structure', kind: 'stairs', color: 0x2e86c1, rotatable: true },
   { id: 'glass_stairs', label: 'Freighter Glass Stairs', short: 'GS', category: 'structure', kind: 'stairs', color: 0x17a589, rotatable: true },
-  { id: 'external_stairs', label: 'Freighter External Stairs', short: 'ES', category: 'structure', kind: 'stairs', color: 0x707b7c, rotatable: true, exterior: true },
+  { id: 'steel_staircase', label: 'Steel Staircase', short: 'STL', category: 'structure', kind: 'stairs', color: 0x566573, rotatable: true },
+  { id: 'exterior_stairs', label: 'Freighter Exterior Stairs', short: 'ES', category: 'structure', kind: 'stairs', color: 0x707b7c, rotatable: true, exterior: true },
   { id: 'ladder', label: 'Ladder Module', short: 'LD', category: 'structure', kind: 'ladder', color: 0x5d6d7e },
   { id: 'exterior_catwalk', label: 'Exterior Catwalk', short: 'CW', category: 'structure', kind: 'exterior', color: 0x839192, exterior: true },
   { id: 'exterior_platform', label: 'Exterior Platform', short: 'PL', category: 'structure', kind: 'exterior', color: 0xa6acaf, exterior: true },
+  room('commercial_room_expansion', 'Commercial Room (Expansion)', 'C+', 'structure', 0x2e4053),
 
   // High-Tech Room Modules
   room('fleet_command_room', 'Fleet Command Room', 'FC', 'hightech', HIGHTECH),

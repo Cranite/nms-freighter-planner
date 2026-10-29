@@ -2,7 +2,8 @@ import {
   createEmptyFreighter, saveFreighter, loadFreighter, autosaveFreighter, loadAutosave,
   serializeFreighter, deserializeFreighter, isLockedTile,
 } from './data.js';
-import { EMPTY_ID } from './modules.js';
+import { EMPTY_ID, MODULE_BY_ID } from './modules.js';
+import { canPlace, coveringAt, spansTwoFloors } from './footprint.js';
 import { setupUI, downloadTextFile } from './ui.js';
 import { createRenderer } from './render.js';
 import { createHistory } from './history.js';
@@ -31,9 +32,7 @@ const ui = setupUI({
   onSelectFloor: (n) => {
     history.endStroke();
     currentFloor = n;
-
-    // Redraw selected floor
-    renderer.drawFloor(freighter.floors[currentFloor - 1]);
+    drawCurrentFloor();
   },
 
   onNew: () => {
@@ -102,8 +101,13 @@ ui.setUndoRedoState(history.canUndo(), history.canRedo());
 function replaceFreighter({ freighter: loaded }) {
   history.recordLayout(freighter, loaded);
   freighter = loaded;
-  renderer.drawFloor(freighter.floors[currentFloor - 1]);
+  drawCurrentFloor();
   onLayoutChanged();
+}
+
+// The renderer also needs the floor below, for stairs coming up from it
+function drawCurrentFloor() {
+  renderer.drawFloor(freighter.floors[currentFloor - 1], freighter.floors[currentFloor - 2] ?? null);
 }
 
 /**
@@ -150,7 +154,7 @@ document.addEventListener('visibilitychange', () => {
 function applyHistoryEntry(entry, side) {
   if (entry.kind === 'layout') {
     freighter = entry[side];
-    renderer.drawFloor(freighter.floors[currentFloor - 1]);
+    drawCurrentFloor();
     onLayoutChanged();
     return;
   }
@@ -163,13 +167,17 @@ function applyHistoryEntry(entry, side) {
     Object.assign(floor.tiles[change.y][change.x], change[side]);
   }
 
-  if (entry.floor === currentFloor) {
+  // Stairs changed on the floor below also show on this floor (their top part)
+  const touchesStairs = entry.changes.some(c => spansTwoFloors(MODULE_BY_ID[c.before.type]) || spansTwoFloors(MODULE_BY_ID[c.after.type]));
+  const visibleHere = entry.floor === currentFloor || (entry.floor === currentFloor - 1 && touchesStairs);
+
+  if (visibleHere) {
     changes.forEach(({ x, y }) => renderer.drawTile(x, y));
   } else {
     // Switch to the floor the change was made on, so it's visible
     currentFloor = entry.floor;
     ui.setFloor(currentFloor);
-    renderer.drawFloor(floor);
+    drawCurrentFloor();
   }
 
   onLayoutChanged();
@@ -193,43 +201,62 @@ function applyDraw(x, y, mode) {
   // Entrance ramp can't be built on
   if (isLockedTile(currentFloor, x, y)) return;
 
-  const tile = freighter.floors[currentFloor - 1].tiles[y][x];
-  const before = { type: tile.type, rotation: tile.rotation };
-
   // 'Empty' module works as an eraser
   if (mode === 'place' && selectedModule?.id === EMPTY_ID) {
     mode = 'remove';
   }
 
-  if (mode === 'place' && selectedModule) {
-    tile.type = selectedModule.id;
-    // Only some modules have a direction (e.g. stairs); corridors shape themselves
-    tile.rotation = selectedModule.rotatable ? selectedRotation : 0;
-
-  } else if (mode === 'remove') {
-    tile.type = null;
-    tile.rotation = 0;
+  if (mode === 'remove') {
+    // Removing any tile of a module removes the whole module (stairs cover 4 tiles)
+    const cover = coveringAt(freighter.floors[currentFloor - 1], freighter.floors[currentFloor - 2] ?? null, x, y);
+    if (cover) setTile(cover.floorNum, cover.x, cover.y, null, 0);
+    return;
   }
 
-  if (tile.type === before.type && tile.rotation === before.rotation) return;
+  if (!selectedModule) return;
+
+  // Only some modules have a direction (e.g. stairs); corridors shape themselves
+  const rotation = selectedModule.rotatable ? selectedRotation : 0;
+
+  // Every tile the module covers must be free (stairs: 2 tiles here, 2 above)
+  if (!canPlace(freighter, selectedModule, currentFloor, x, y, rotation)) return;
+
+  setTile(currentFloor, x, y, selectedModule.id, rotation);
+}
+
+/**
+ * Stores a module (or null) on a tile, records it for undo and redraws.
+ * `floorNum` can be the floor below, when erasing stairs from their top part.
+ */
+function setTile(floorNum, x, y, type, rotation) {
+  const tile = freighter.floors[floorNum - 1].tiles[y][x];
+  if (tile.type === type && tile.rotation === rotation) return;
+
+  const before = { type: tile.type, rotation: tile.rotation };
+  tile.type = type;
+  tile.rotation = rotation;
 
   // Part of the current stroke's undo step
-  history.recordTile(currentFloor, x, y, before, { type: tile.type, rotation: tile.rotation });
+  history.recordTile(floorNum, x, y, before, { type, rotation });
 
-  // Re-render only the changed tile (and neighbours whose corridor shape may change)
+  // Re-render the area around the tile (stairs and corridor shapes reach beyond it)
   renderer.drawTile(x, y);
   onLayoutChanged();
 }
 
 // Setup pointer interaction
-renderer.setupInteraction(
+renderer.setupInteraction({
   applyDraw,
-  () => selectedModule,
-  () => selectedRotation,
-  (val) => selectedRotation = val,
-  () => history.endStroke(),
-);
+  getModule: () => selectedModule,
+  getRotation: () => selectedRotation,
+  setRotation: (val) => selectedRotation = val,
+  onStrokeEnd: () => history.endStroke(),
+
+  // For the ghost preview: red outline where the selected module can't go
+  canPlaceAt: (x, y) => !selectedModule || selectedModule.id === EMPTY_ID
+    || canPlace(freighter, selectedModule, currentFloor, x, y, selectedModule.rotatable ? selectedRotation : 0),
+});
 
 // Initial render
-renderer.drawFloor(freighter.floors[currentFloor - 1]);
+drawCurrentFloor();
 onLayoutChanged();
