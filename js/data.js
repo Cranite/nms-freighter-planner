@@ -71,57 +71,22 @@ export function createEmptyFreighter() {
  *
  * {
  *   app: 'nms-freighter-planner',
- *   version: 2,
+ *   version: 1,
  *   floors: [{ floor: 1, tiles: [[null | { type, rotation }, ...], ...] }, ...]
  * }
  *
- * Bump SAVE_VERSION when the format changes (incl. renamed module ids)
- * and add a migration from the previous version to MIGRATIONS.
+ * Once layouts are in use: bump SAVE_VERSION when the format changes
+ * (incl. renamed module ids) and add a migration to MIGRATIONS.
  */
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 1;
 const SAVE_APP_ID = 'nms-freighter-planner';
 const STORAGE_KEY = 'freighterLayout';
 const AUTOSAVE_KEY = 'freighterAutosave';
 
 /**
- * Migrations: MIGRATIONS[n] upgrades version n → n + 1
+ * Migrations: MIGRATIONS[n] upgrades version n → n + 1 (none yet)
  */
-const MIGRATIONS = {
-  // v0: raw in-memory state, no version field, empty tiles as { type: null }
-  0: (data) => ({
-    ...data,
-    floors: data.floors.map(floor => ({
-      ...floor,
-      tiles: Array.isArray(floor?.tiles)
-        ? floor.tiles.map(row => Array.isArray(row) ? row.map(t => (t?.type ? t : null)) : row)
-        : floor?.tiles,
-    })),
-  }),
-
-  // v1: placeholder modules → wiki-based modules (corridors now shape themselves)
-  1: (data) => ({
-    ...data,
-    floors: data.floors.map(floor => ({
-      ...floor,
-      tiles: Array.isArray(floor?.tiles)
-        ? floor.tiles.map(row => Array.isArray(row)
-          ? row.map(t => (t?.type && V1_MODULE_IDS[t.type] ? { type: V1_MODULE_IDS[t.type], rotation: 0 } : t))
-          : row)
-        : floor?.tiles,
-    })),
-  }),
-};
-
-// Old (v1) module id → new module id
-const V1_MODULE_IDS = {
-  corridor_1: 'freighter_corridor',
-  corridor_2: 'freighter_corridor',
-  corridor_3: 'freighter_corridor',
-  corridor_4: 'freighter_corridor',
-  storage: 'storage_room_0',
-  command: 'fleet_command_room',
-  refiner: 'refiner_room',
-};
+const MIGRATIONS = {};
 
 /**
  * Converts freighter state to a versioned JSON string
@@ -155,22 +120,20 @@ export function deserializeFreighter(json) {
     throw new Error('File is not valid JSON.');
   }
 
-  if (data?.app !== undefined && data.app !== SAVE_APP_ID) {
+  if (data?.app !== SAVE_APP_ID || !Array.isArray(data.floors)) {
     throw new Error('This is not a freighter planner layout.');
   }
 
-  let version = data?.version ?? 0;
-  if (!Number.isInteger(version) || version < 0) {
+  let version = data.version;
+  if (!Number.isInteger(version) || version < 1) {
     throw new Error('Layout has an invalid version.');
   }
   if (version > SAVE_VERSION) {
     throw new Error('Layout was made with a newer version of the planner.');
   }
-  if (!Array.isArray(data?.floors)) {
-    throw new Error('This is not a freighter planner layout.');
-  }
 
   while (version < SAVE_VERSION) {
+    if (!MIGRATIONS[version]) throw new Error('Layout version is no longer supported.');
     data = MIGRATIONS[version](data);
     version++;
   }

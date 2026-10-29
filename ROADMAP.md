@@ -8,7 +8,7 @@ Each step makes the next one cheaper, so the order matters.
 
 - [x] **1. Export/import layout as JSON file**
   - Add a `version` field to the save format + migration hook, so later data model changes can upgrade old saves
-  - Format and migrations live in `js/data.js` (`SAVE_VERSION`, `MIGRATIONS`)
+  - Format and migrations live in `js/data.js` (`SAVE_VERSION`, `MIGRATIONS`); the format stays at version 1 until the planner is in use
 - [x] **2. Partial rendering instead of full redraw**
   - Keep one sprite per cell, update only changed cells
   - Gives a per-cell layer for validation highlights later
@@ -20,7 +20,7 @@ Each step makes the next one cheaper, so the order matters.
 - [x] **4. More modules**
   - 37 modules from the wiki's Freighter Base Building list (`js/modules.js`), grouped by category, searchable palette
   - Corridors shape themselves from their neighbours (as in the game since Endurance); rotation only for stairs
-  - Locked entrance ramp tile on floor 1; save format v2 migrates the old placeholder modules
+  - Locked entrance ramp tile on floor 1
   - Open question: do stairs take a tile on both floors they connect? (currently one tile + direction)
 - [ ] **5. Module snapping / validation**
   - Start with highlighting problems (corridor opening into a wall, unreachable rooms), auto-snapping later
