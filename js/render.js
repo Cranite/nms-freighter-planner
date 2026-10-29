@@ -1,6 +1,5 @@
 import { TILE_SIZE, GRID_SIZE, RAMP, isLockedTile } from './data.js';
-import { connectsToCorridor } from './modules.js';
-import { STEP, spansTwoFloors, coveringAt } from './footprint.js';
+import { STEP, spansTwoFloors, coveringAt, opensTowards } from './footprint.js';
 
 /**
  * Corridor textures per shape. At rotation 0 they connect:
@@ -59,6 +58,7 @@ export async function createRenderer() {
  *   ├─ bridgeLabel     (marks the bridge side of the grid)
  *   ├─ rampMarker      (locked entrance ramp tile, floor 1 only)
  *   ├─ moduleContainer (placed modules, one display object per module start tile)
+ *   ├─ problemMarkers  (validation problems on this floor)
  *   └─ ghost.container (preview module)
  */
 function initRenderer(app) {
@@ -66,6 +66,7 @@ function initRenderer(app) {
   const bridgeLabel = drawBridgeLabel();
   const rampMarker = drawRampMarker();
   const moduleContainer = new PIXI.Container();
+  const problemMarkers = new PIXI.Graphics();
   const stageContainer = new PIXI.Container();
 
   const modules = createModuleLayer(moduleContainer, rampMarker);
@@ -75,6 +76,7 @@ function initRenderer(app) {
   stageContainer.addChild(bridgeLabel);
   stageContainer.addChild(rampMarker);
   stageContainer.addChild(moduleContainer);
+  stageContainer.addChild(problemMarkers);
   stageContainer.addChild(ghost.container);
   app.stage.addChild(stageContainer);
 
@@ -99,6 +101,7 @@ function initRenderer(app) {
   return {
     drawFloor: modules.drawFloor,
     drawTile: modules.drawTile,
+    showProblemTiles: (tiles) => drawProblemMarkers(problemMarkers, tiles),
     setupInteraction: (handlers) => setupInteraction(grid, ghost, handlers),
   };
 }
@@ -166,6 +169,19 @@ function drawRampMarker() {
   return marker;
 }
 
+/**
+ * Red outline + light fill on tiles with a validation problem: [{ x, y }]
+ */
+function drawProblemMarkers(g, tiles) {
+  g.clear();
+  g.lineStyle(2, 0xff4d4d, 0.9);
+  g.beginFill(0xff4d4d, 0.18);
+  for (const { x, y } of tiles) {
+    g.drawRect(x * TILE_SIZE + 1, y * TILE_SIZE + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+  }
+  g.endFill();
+}
+
 // Degrees → radians
 const toRadians = (degrees) => (degrees || 0) * Math.PI / 180;
 
@@ -198,36 +214,17 @@ function corridorShape(mask) {
 }
 
 /**
- * Sides of tile (x, y) with a neighbour a corridor connects to.
- * The entrance ramp counts as connected. Interior stairs connect only
- * at their ends: behind the low end, and past the high end on the floor above.
+ * Sides of tile (x, y) whose neighbour opens towards it (see opensTowards:
+ * ramp, interior modules, and stairs only at their ends)
  */
 function corridorMask(floor, floorBelow, x, y) {
   let mask = 0;
 
   for (const [dx, dy, dir] of NEIGHBOURS) {
     const nx = x + dx, ny = y + dy;
+    if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE) continue;
 
-    if (isLockedTile(floor.floor, nx, ny)) {
-      mask |= dir;
-      continue;
-    }
-
-    const cover = coveringAt(floor, floorBelow, nx, ny);
-    if (!cover) continue;
-
-    if (!spansTwoFloors(cover.modDef)) {
-      if (connectsToCorridor(cover.modDef)) mask |= dir;
-      continue;
-    }
-
-    if (cover.modDef.exterior) continue;
-
-    // This tile, seen from the stairs, is it straight behind / ahead of them?
-    const [sx, sy] = STEP[cover.tile.rotation];
-    const entersHere = cover.part === 'base' && cover.end === 'low' && x === nx - sx && y === ny - sy;
-    const exitsHere = cover.part === 'top' && cover.end === 'high' && x === nx + sx && y === ny + sy;
-    if (entersHere || exitsHere) mask |= dir;
+    if (opensTowards(floor, floorBelow, nx, ny, -dx, -dy)) mask |= dir;
   }
   return mask;
 }

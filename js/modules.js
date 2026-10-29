@@ -7,6 +7,8 @@
  * wall art and legacy structures. Wall pieces (Internal Wall, Bulkhead
  * Door, Reinforced Window) sit between tiles and are not included yet.
  * "Expansion Room Variant" is left out: a reskin of Industrial Room (Expansion).
+ * The Ladder Module (an add-on to a corridor, linking it to the corridor
+ * above) is left out for now, see ROADMAP.md.
  *
  * Stairs span 2 tiles in their climb direction on their own floor and
  * the same 2 tiles on the floor above (see footprint.js).
@@ -16,10 +18,10 @@
  * - label     UI display name
  * - short     2–3 character label drawn on the tile
  * - category  palette group (see CATEGORIES)
- * - kind      'corridor' | 'stairs' | 'ladder' | 'exterior' | 'room' | 'eraser'
+ * - kind      'corridor' | 'stairs' | 'exterior' | 'room' | 'eraser'
  * - color     tile color (tint for corridor textures)
  * - rotatable optional, rotation (R key) matters, e.g. stairs climb direction
- * - exterior  optional, outside the hull (doesn't connect to corridors)
+ * - exterior  optional, outside the hull (needs a Bulkhead Door, so it doesn't connect to the interior)
  * - icon      optional palette image
  */
 
@@ -53,7 +55,6 @@ export const MODULE_TYPES = [
   { id: 'glass_stairs', label: 'Freighter Glass Stairs', short: 'GS', category: 'structure', kind: 'stairs', color: 0x17a589, rotatable: true },
   { id: 'steel_staircase', label: 'Steel Staircase', short: 'STL', category: 'structure', kind: 'stairs', color: 0x566573, rotatable: true },
   { id: 'exterior_stairs', label: 'Freighter Exterior Stairs', short: 'ES', category: 'structure', kind: 'stairs', color: 0x707b7c, rotatable: true, exterior: true },
-  { id: 'ladder', label: 'Ladder Module', short: 'LD', category: 'structure', kind: 'ladder', color: 0x5d6d7e },
   { id: 'exterior_catwalk', label: 'Exterior Catwalk', short: 'CW', category: 'structure', kind: 'exterior', color: 0x839192, exterior: true },
   { id: 'exterior_platform', label: 'Exterior Platform', short: 'PL', category: 'structure', kind: 'exterior', color: 0xa6acaf, exterior: true },
   room('commercial_room_expansion', 'Commercial Room (Expansion)', 'C+', 'structure', 0x2e4053),
@@ -92,11 +93,3 @@ export const MODULE_TYPES = [
 
 // Lookup by id (undefined for unknown/removed module types)
 export const MODULE_BY_ID = Object.fromEntries(MODULE_TYPES.map(m => [m.id, m]));
-
-/**
- * Whether a corridor on a neighbouring tile connects to this module
- * (exterior pieces need a Bulkhead Door, so they don't).
- */
-export function connectsToCorridor(modDef) {
-  return !!modDef && !modDef.exterior && ['corridor', 'stairs', 'ladder', 'room'].includes(modDef.kind);
-}
