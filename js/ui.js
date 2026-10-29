@@ -5,7 +5,7 @@ import { MODULE_TYPES, CATEGORIES, EMPTY_ID } from './modules.js';
  * Builds the sidebar and wires up its controls.
  * Returns functions to update UI state from the app.
  */
-export function setupUI({ onSelectModule, onSelectFloor, onNew, onSave, onLoad, onExport, onImport, onUndo, onRedo }) {
+export function setupUI({ onSelectModule, onSelectFloor, onNew, onSave, onLoad, onExport, onImport, onUndo, onRedo, onGoToFloor }) {
   buildPalette(onSelectModule);
 
   // Floor Selector
@@ -63,6 +63,40 @@ export function setupUI({ onSelectModule, onSelectFloor, onNew, onSave, onLoad, 
     // Reflect a floor change made by the app (e.g. undo on another floor)
     setFloor(n) {
       floorSelect.value = n;
+    },
+
+    // Validation problems: [{ message, locations: [{ floor, x, y }] }]
+    showProblems(problems) {
+      const container = document.getElementById('problems');
+      container.replaceChildren();
+
+      if (problems.length === 0) {
+        const ok = document.createElement('p');
+        ok.className = 'problems-ok';
+        ok.textContent = '✓ No problems found';
+        container.appendChild(ok);
+        return;
+      }
+
+      const heading = document.createElement('p');
+      heading.className = 'problems-heading';
+      heading.textContent = `⚠ ${problems.length} ${problems.length === 1 ? 'problem' : 'problems'}`;
+      container.appendChild(heading);
+
+      const list = document.createElement('ul');
+      for (const problem of problems) {
+        const floor = problem.locations[0].floor;
+        const item = document.createElement('li');
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'problem';
+        btn.textContent = problem.message;
+        btn.title = `Go to floor ${floor}`;
+        btn.addEventListener('click', () => onGoToFloor(floor));
+        item.appendChild(btn);
+        list.appendChild(item);
+      }
+      container.appendChild(list);
     },
 
     // Mark floors that have modules on them: "Floor 3 •"

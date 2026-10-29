@@ -58,6 +58,28 @@ export function coveringAt(floor, floorBelow, x, y) {
 }
 
 /**
+ * Whether you can walk out of tile (x, y) on `floor` towards (dx, dy).
+ * - Entrance ramp: all sides
+ * - Interior modules (corridors, rooms): all sides; neighbours connect
+ *   through doorways or merge into bigger rooms
+ * - Stairs: only behind their low end, and past their high end on the floor above
+ * - Exterior pieces: none, they need a Bulkhead Door (not supported yet)
+ * Two neighbouring tiles connect when both open towards each other.
+ */
+export function opensTowards(floor, floorBelow, x, y, dx, dy) {
+  if (isLockedTile(floor.floor, x, y)) return true;
+
+  const cover = coveringAt(floor, floorBelow, x, y);
+  if (!cover || cover.modDef.exterior || cover.modDef.kind === 'eraser') return false;
+  if (!spansTwoFloors(cover.modDef)) return true;
+
+  const [sx, sy] = STEP[cover.tile.rotation];
+  if (cover.part === 'base' && cover.end === 'low') return dx === -sx && dy === -sy;
+  if (cover.part === 'top' && cover.end === 'high') return dx === sx && dy === sy;
+  return false;
+}
+
+/**
  * Whether `modDef` can be placed at (x, y) on floor `floorNum`:
  * every tile of its footprint must be inside the build area, not the
  * ramp, and free. Replacing the module already stored on (x, y) is fine.

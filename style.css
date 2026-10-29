@@ -132,6 +132,49 @@ button {
   font-size: 0.8rem;
 }
 
+/* Validation problems: short list, scrolls when long */
+#problems {
+  margin: 6px 0;
+  font-size: 0.75rem;
+}
+
+#problems p {
+  margin: 0 0 4px;
+}
+
+.problems-ok {
+  color: #6c9;
+}
+
+.problems-heading {
+  color: #ff6b6b;
+  font-weight: bold;
+}
+
+#problems ul {
+  max-height: 140px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.problem {
+  margin: 0 0 3px;
+  padding: 3px 6px;
+  border: 1px solid #5a2a2a;
+  border-radius: 5px;
+  background: #2a1515;
+  color: #f0c0c0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.problem:hover {
+  background: #3a1d1d;
+}
+
 .hint {
   margin: 6px 0 2px;
   font-size: 0.75rem;

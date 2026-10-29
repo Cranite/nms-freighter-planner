@@ -7,6 +7,7 @@ import { canPlace, coveringAt, spansTwoFloors } from './footprint.js';
 import { setupUI, downloadTextFile } from './ui.js';
 import { createRenderer } from './render.js';
 import { createHistory } from './history.js';
+import { validateLayout } from './validation.js';
 
 // Application state; continues where the last session left off (auto-save)
 let freighter = loadAutosave() ?? createEmptyFreighter();
@@ -29,10 +30,12 @@ const ui = setupUI({
     selectedRotation = 0; // reset rotation on new selection
   },
 
-  onSelectFloor: (n) => {
-    history.endStroke();
-    currentFloor = n;
-    drawCurrentFloor();
+  onSelectFloor: (n) => goToFloor(n),
+
+  // Clicked a problem in the list
+  onGoToFloor: (n) => {
+    goToFloor(n);
+    ui.setFloor(n);
   },
 
   onNew: () => {
@@ -105,9 +108,16 @@ function replaceFreighter({ freighter: loaded }) {
   onLayoutChanged();
 }
 
+function goToFloor(n) {
+  history.endStroke();
+  currentFloor = n;
+  drawCurrentFloor();
+}
+
 // The renderer also needs the floor below, for stairs coming up from it
 function drawCurrentFloor() {
   renderer.drawFloor(freighter.floors[currentFloor - 1], freighter.floors[currentFloor - 2] ?? null);
+  showProblemMarkers();
 }
 
 /**
@@ -116,6 +126,29 @@ function drawCurrentFloor() {
 function onLayoutChanged() {
   ui.setFloorsWithContent(floorsWithContent());
   scheduleAutosave();
+  scheduleValidation();
+}
+
+/**
+ * Validation, debounced like auto-save: checks the whole freighter, so
+ * run it once a drag pauses rather than for every tile
+ */
+const VALIDATION_DELAY = 100; // ms
+let validationTimer = null;
+let problems = [];
+
+function scheduleValidation() {
+  clearTimeout(validationTimer);
+  validationTimer = setTimeout(() => {
+    problems = validateLayout(freighter);
+    ui.showProblems(problems);
+    showProblemMarkers();
+  }, VALIDATION_DELAY);
+}
+
+// Red markers on the current floor's problem tiles
+function showProblemMarkers() {
+  renderer.showProblemTiles(problems.flatMap(p => p.locations).filter(l => l.floor === currentFloor));
 }
 
 // Per floor: does it have any module on it?
