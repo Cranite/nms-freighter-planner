@@ -4,6 +4,7 @@ A browser-based planning tool for designing freighter layouts using a grid syste
 
 ## 🚀 Features
 - Multi-floor support (14 floors, 21×21 capital freighter grid)
+- Onion skin: the floor below shows faintly, the floor above as outlines (each can be switched off)
 - 39 freighter modules from the game: corridors, stairs, exterior decks, High-Tech / Industrial / Agricultural rooms
 - Stairs span 2 tiles and 2 floors, like in the game; occupied tiles can't be built on
 - Validation: unreachable modules, duplicate storage numbers and dead-end stairs are listed and marked on the grid

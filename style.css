@@ -132,6 +132,18 @@ button {
   font-size: 0.8rem;
 }
 
+/* Onion skin checkboxes under the floor picker */
+.onion-skin {
+  margin: 4px 0 2px;
+  font-size: 0.8rem;
+  color: #aaa;
+}
+
+.onion-skin label {
+  display: block;
+  cursor: pointer;
+}
+
 /* Validation problems: short list, scrolls when long */
 #problems {
   margin: 6px 0;

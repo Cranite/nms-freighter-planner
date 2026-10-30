@@ -5,7 +5,7 @@ import { MODULE_TYPES, CATEGORIES, EMPTY_ID } from './modules.js';
  * Builds the sidebar and wires up its controls.
  * Returns functions to update UI state from the app.
  */
-export function setupUI({ onSelectModule, onSelectFloor, onNew, onSave, onLoad, onExport, onImport, onUndo, onRedo, onGoToFloor }) {
+export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onNew, onSave, onLoad, onExport, onImport, onUndo, onRedo, onGoToFloor }) {
   const palette = buildPalette(onSelectModule);
 
   // Floor Selector
@@ -17,6 +17,19 @@ export function setupUI({ onSelectModule, onSelectFloor, onNew, onSave, onLoad, 
     floorSelect.appendChild(opt);
   }
   floorSelect.addEventListener('change', e => onSelectFloor(parseInt(e.target.value)));
+
+  // Onion skin checkboxes, remembered in this browser
+  const onionBelow = document.getElementById('onionBelow');
+  const onionAbove = document.getElementById('onionAbove');
+  const onionSkin = loadOnionSkin();
+  onionBelow.checked = onionSkin.below;
+  onionAbove.checked = onionSkin.above;
+
+  const getOnionSkin = () => ({ below: onionBelow.checked, above: onionAbove.checked });
+  [onionBelow, onionAbove].forEach(box => box.addEventListener('change', () => {
+    saveOnionSkin(getOnionSkin());
+    onOnionSkinChange(getOnionSkin());
+  }));
 
   // Buttons
   document.getElementById('newBtn').addEventListener('click', onNew);
@@ -65,6 +78,9 @@ export function setupUI({ onSelectModule, onSelectFloor, onNew, onSave, onLoad, 
       floorSelect.value = n;
     },
 
+    // { below, above }: which neighbouring floors to show
+    getOnionSkin,
+
     // Reflect a module picked by the app (eyedropper)
     selectModule(id) {
       palette.select(id);
@@ -112,6 +128,31 @@ export function setupUI({ onSelectModule, onSelectFloor, onNew, onSave, onLoad, 
       });
     },
   };
+}
+
+// Onion skin settings: a view preference, so stored apart from the layout.
+// Storage can be blocked (private mode); then the defaults are used.
+const ONION_SKIN_KEY = 'freighterOnionSkin';
+const ONION_SKIN_DEFAULT = { below: true, above: false };
+
+function loadOnionSkin() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(ONION_SKIN_KEY));
+    return {
+      below: typeof saved?.below === 'boolean' ? saved.below : ONION_SKIN_DEFAULT.below,
+      above: typeof saved?.above === 'boolean' ? saved.above : ONION_SKIN_DEFAULT.above,
+    };
+  } catch {
+    return { ...ONION_SKIN_DEFAULT };
+  }
+}
+
+function saveOnionSkin(settings) {
+  try {
+    localStorage.setItem(ONION_SKIN_KEY, JSON.stringify(settings));
+  } catch (err) {
+    console.warn('⚠️ Onion skin setting could not be saved', err);
+  }
 }
 
 /**

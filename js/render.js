@@ -56,8 +56,10 @@ export async function createRenderer() {
  * stageContainer
  *   ├─ grid            (static grid, single Graphics, receives pointer input)
  *   ├─ bridgeLabel     (marks the bridge side of the grid)
+ *   ├─ belowContainer  (onion skin: the floor below, faint)
  *   ├─ rampMarker      (locked entrance ramp tile, floor 1 only)
  *   ├─ moduleContainer (placed modules, one display object per module start tile)
+ *   ├─ aboveOutlines   (onion skin: outlines of the floor above)
  *   ├─ problemMarkers  (validation problems on this floor)
  *   └─ ghost.container (preview module)
  */
@@ -65,17 +67,23 @@ function initRenderer(app) {
   const grid = drawGrid();
   const bridgeLabel = drawBridgeLabel();
   const rampMarker = drawRampMarker();
+  const belowContainer = new PIXI.Container();
   const moduleContainer = new PIXI.Container();
+  const aboveOutlines = new PIXI.Graphics();
   const problemMarkers = new PIXI.Graphics();
   const stageContainer = new PIXI.Container();
 
   const modules = createModuleLayer(moduleContainer, rampMarker);
+  const below = createModuleLayer(belowContainer);
+  belowContainer.alpha = 0.28;
   const ghost = createGhost(modules.getFloors);
 
   stageContainer.addChild(grid);
   stageContainer.addChild(bridgeLabel);
+  stageContainer.addChild(belowContainer);
   stageContainer.addChild(rampMarker);
   stageContainer.addChild(moduleContainer);
+  stageContainer.addChild(aboveOutlines);
   stageContainer.addChild(problemMarkers);
   stageContainer.addChild(ghost.container);
   app.stage.addChild(stageContainer);
@@ -98,9 +106,41 @@ function initRenderer(app) {
     clampStagePosition(stageContainer, app);
   }).observe(app.view.parentElement);
 
+  // Onion skin: neighbouring floors shown for reference (never edited)
+  let onionSkin = { below: true, above: false };
+  let floors = null;   // all floors of the layout
+  let floorNum = 1;    // floor being edited
+
+  function drawOnionSkin() {
+    const floorBelow = onionSkin.below ? floors[floorNum - 2] : null;
+    belowContainer.visible = !!floorBelow;
+    if (floorBelow) below.drawFloor(floorBelow, floors[floorNum - 3] ?? null);
+
+    drawAboveOutlines(aboveOutlines, onionSkin.above ? floors[floorNum] : null, floors[floorNum - 1]);
+  }
+
   return {
-    drawFloor: modules.drawFloor,
-    drawTile: modules.drawTile,
+    // Show floor `n` of `allFloors` (with its onion skin)
+    drawFloor(allFloors, n) {
+      floors = allFloors;
+      floorNum = n;
+      modules.drawFloor(floors[n - 1], floors[n - 2] ?? null);
+      drawOnionSkin();
+    },
+
+    // Redraw around a changed tile; the onion skin can change too (erasing stairs from their top)
+    drawTile(x, y) {
+      modules.drawTile(x, y);
+      if (belowContainer.visible) below.drawTile(x, y);
+      drawAboveOutlines(aboveOutlines, onionSkin.above ? floors[floorNum] : null, floors[floorNum - 1]);
+    },
+
+    // { below, above }: which neighbouring floors to show
+    setOnionSkin(settings) {
+      onionSkin = settings;
+      if (floors) drawOnionSkin();
+    },
+
     showProblemTiles: (tiles) => drawProblemMarkers(problemMarkers, tiles),
     setupInteraction: (handlers) => setupInteraction(grid, ghost, handlers),
   };
@@ -180,6 +220,36 @@ function drawProblemMarkers(g, tiles) {
     g.drawRect(x * TILE_SIZE + 1, y * TILE_SIZE + 1, TILE_SIZE - 2, TILE_SIZE - 2);
   }
   g.endFill();
+}
+
+/**
+ * Onion skin: dashed outlines of the modules on the floor above.
+ * Stairs from this floor arriving there are skipped (already drawn here).
+ */
+function drawAboveOutlines(g, floorAbove, floor) {
+  g.clear();
+  if (!floorAbove) return;
+
+  g.lineStyle(1.5, 0xc9c9c9, 0.7);
+  for (let y = 0; y < GRID_SIZE; y++) {
+    for (let x = 0; x < GRID_SIZE; x++) {
+      const cover = coveringAt(floorAbove, floor, x, y);
+      if (!cover || cover.part !== 'base' || cover.modDef.kind === 'eraser') continue;
+      drawDashedRect(g, x * TILE_SIZE + 3, y * TILE_SIZE + 3, TILE_SIZE - 6, TILE_SIZE - 6);
+    }
+  }
+}
+
+// PIXI has no dashed lines: draw each side as short segments
+function drawDashedRect(g, x, y, width, height, dash = 3, gap = 3) {
+  const sides = [[x, y, 1, 0, width], [x + width, y, 0, 1, height], [x + width, y + height, -1, 0, width], [x, y + height, 0, -1, height]];
+  for (const [sx, sy, dx, dy, length] of sides) {
+    for (let d = 0; d < length; d += dash + gap) {
+      const end = Math.min(d + dash, length);
+      g.moveTo(sx + dx * d, sy + dy * d);
+      g.lineTo(sx + dx * end, sy + dy * end);
+    }
+  }
 }
 
 // Degrees → radians
@@ -355,7 +425,7 @@ function createStairsObject(modDef, visual, x, y) {
  * look changed are rebuilt (partial rendering). Objects live on the tile
  * where a module starts; stairs extend from there over their other tile.
  */
-function createModuleLayer(container, rampMarker) {
+function createModuleLayer(container, rampMarker = null) {
   // cells[y][x] = { key, obj } or null
   const cells = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
 
@@ -401,7 +471,7 @@ function createModuleLayer(container, rampMarker) {
   function drawFloor(newFloor, newFloorBelow = null) {
     floor = newFloor;
     floorBelow = newFloorBelow;
-    rampMarker.visible = floor.floor === RAMP.floor;
+    if (rampMarker) rampMarker.visible = floor.floor === RAMP.floor;
 
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {

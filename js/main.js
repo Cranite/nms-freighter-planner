@@ -32,6 +32,8 @@ const ui = setupUI({
 
   onSelectFloor: (n) => goToFloor(n),
 
+  onOnionSkinChange: (settings) => renderer.setOnionSkin(settings),
+
   // Clicked a problem in the list
   onGoToFloor: (n) => {
     goToFloor(n);
@@ -116,7 +118,7 @@ function goToFloor(n) {
 
 // The renderer also needs the floor below, for stairs coming up from it
 function drawCurrentFloor() {
-  renderer.drawFloor(freighter.floors[currentFloor - 1], freighter.floors[currentFloor - 2] ?? null);
+  renderer.drawFloor(freighter.floors, currentFloor);
   showProblemMarkers();
 }
 
@@ -304,6 +306,7 @@ renderer.setupInteraction({
     || canPlace(freighter, selectedModule, currentFloor, x, y, selectedModule.rotatable ? selectedRotation : 0),
 });
 
-// Initial render
+// Initial render, with the onion skin settings remembered in this browser
+renderer.setOnionSkin(ui.getOnionSkin());
 drawCurrentFloor();
 onLayoutChanged();

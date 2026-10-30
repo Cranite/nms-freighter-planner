@@ -39,7 +39,7 @@ Each step makes the next one cheaper, so the order matters.
   - In-game, neighbouring rooms either connect through a doorway or merge into one bigger room; the planner treats both as connected but doesn't draw the difference yet
 - [ ] **6. 3D visualization of freighter layout**
   - Separate renderer (e.g. three.js) stacking the floors
-  - Cheap 2D precursor: "onion skin" showing the floor below faintly
+  - ✅ Cheap 2D precursor: "onion skin" showing the floor below faintly (and the floor above as outlines)
 
 ## 💾 Saving & sharing
 
