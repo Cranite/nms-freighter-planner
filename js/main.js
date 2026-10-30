@@ -8,6 +8,7 @@ import { setupUI, downloadTextFile } from './ui.js';
 import { createRenderer } from './render.js';
 import { createHistory } from './history.js';
 import { validateLayout } from './validation.js';
+import { copyFloor, pasteFloor, clearFloor } from './floorTools.js';
 
 // Application state; continues where the last session left off (auto-save)
 let freighter = loadAutosave() ?? createEmptyFreighter();
@@ -16,6 +17,9 @@ let currentFloor = 1;
 // Currently selected module + rotation
 let selectedModule = null;
 let selectedRotation = 0; // 0, 90, 180, 270
+
+// Floor copied with "Copy floor" (kept until the page is closed)
+let copiedFloor = null;
 
 // Undo/redo; keeps the Undo/Redo buttons in sync
 const history = createHistory(() => ui.setUndoRedoState(history.canUndo(), history.canRedo()));
@@ -38,6 +42,31 @@ const ui = setupUI({
   onGoToFloor: (n) => {
     goToFloor(n);
     ui.setFloor(n);
+  },
+
+  onCopyFloor: () => {
+    copiedFloor = copyFloor(freighter, currentFloor);
+    ui.setCopiedFloor(currentFloor);
+  },
+
+  onPasteFloor: () => {
+    if (!copiedFloor) return;
+    const hasContent = floorsWithContent()[currentFloor - 1];
+    if (hasContent && !confirm(`Replace floor ${currentFloor} with the copy of floor ${copiedFloor.floor}? (Ctrl+Z undoes this)`)) return;
+
+    const result = pasteFloor(freighter, currentFloor, copiedFloor);
+    replaceFreighter(result);
+    if (result.skipped) {
+      alert(`${result.skipped} ${result.skipped === 1 ? 'module was' : 'modules were'} not pasted: `
+        + 'something is in the way here (the ramp, or stairs from the floor below or above), or stairs on the top floor.');
+    }
+  },
+
+  onClearFloor: () => {
+    if (!floorsWithContent()[currentFloor - 1]) return;
+    if (!confirm(`Clear floor ${currentFloor}? (Ctrl+Z undoes this)`)) return;
+
+    replaceFreighter({ freighter: clearFloor(freighter, currentFloor) });
   },
 
   onNew: () => {

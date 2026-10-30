@@ -5,7 +5,7 @@ import { MODULE_TYPES, CATEGORIES, EMPTY_ID } from './modules.js';
  * Builds the sidebar and wires up its controls.
  * Returns functions to update UI state from the app.
  */
-export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onNew, onSave, onLoad, onExport, onImport, onUndo, onRedo, onGoToFloor }) {
+export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onCopyFloor, onPasteFloor, onClearFloor, onNew, onSave, onLoad, onExport, onImport, onUndo, onRedo, onGoToFloor }) {
   const palette = buildPalette(onSelectModule);
 
   // Floor Selector
@@ -30,6 +30,12 @@ export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onNe
     saveOnionSkin(getOnionSkin());
     onOnionSkinChange(getOnionSkin());
   }));
+
+  // Whole-floor tools; Paste is enabled once a floor is copied
+  const pasteFloorBtn = document.getElementById('pasteFloorBtn');
+  document.getElementById('copyFloorBtn').addEventListener('click', onCopyFloor);
+  pasteFloorBtn.addEventListener('click', onPasteFloor);
+  document.getElementById('clearFloorBtn').addEventListener('click', onClearFloor);
 
   // Buttons
   document.getElementById('newBtn').addEventListener('click', onNew);
@@ -80,6 +86,13 @@ export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onNe
 
     // { below, above }: which neighbouring floors to show
     getOnionSkin,
+
+    // A floor was copied: enable Paste and say which floor it pastes
+    setCopiedFloor(n) {
+      pasteFloorBtn.disabled = false;
+      pasteFloorBtn.title = `Replace this floor with the copy of floor ${n}`;
+      document.getElementById('copiedFloor').textContent = `Copied: floor ${n}`;
+    },
 
     // Reflect a module picked by the app (eyedropper)
     selectModule(id) {

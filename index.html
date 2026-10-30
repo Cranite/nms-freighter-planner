@@ -31,6 +31,14 @@
       <label><input type="checkbox" id="onionAbove"> Show floor above</label>
     </div>
 
+    <!-- Whole-floor tools (paste and clear are undoable) -->
+    <div class="button-row">
+      <button id="copyFloorBtn" title="Copy this floor">Copy</button>
+      <button id="pasteFloorBtn" title="Copy a floor first" disabled>Paste</button>
+      <button id="clearFloorBtn" title="Remove everything on this floor">Clear</button>
+    </div>
+    <p id="copiedFloor" class="hint"></p>
+
     <!-- Undo/redo -->
     <div class="button-row">
       <button id="undoBtn" title="Undo (Ctrl+Z)">↶ Undo</button>

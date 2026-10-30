@@ -53,7 +53,7 @@ Each step makes the next one cheaper, so the order matters.
 - [ ] Rectangle fill
 - [ ] Line tool for corridors
 - [x] Eyedropper: pick module + rotation from a placed tile (middle-click or Alt+click)
-- [ ] Copy / paste / clear a whole floor
+- [x] Copy / paste / clear a whole floor (`js/floorTools.js`; paste skips modules that don't fit)
 - [x] Right-click to erase (Shift+click still works)
 - [ ] Keyboard shortcuts: `1`–`9` select module, PgUp/PgDn change floor (Ctrl+Z / Ctrl+Y undo/redo ✅ done)
 
