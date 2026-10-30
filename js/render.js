@@ -488,6 +488,9 @@ function setupZoomAndDrag(app, stageContainer) {
 
   app.view.addEventListener('mouseleave', () => isDragging = false);
 
+  // Right-click erases, so no browser menu on the canvas
+  app.view.addEventListener('contextmenu', (e) => e.preventDefault());
+
   let minScale = 0.5;
   let maxScale = 3;
 
@@ -570,7 +573,7 @@ function centerStage(stageContainer, app) {
 /**
  * Interaction system:
  * - Click = place
- * - Shift + click = remove
+ * - Right-click or Shift + click = remove
  * - Drag = continuous drawing
  * - R = rotate module
  *
@@ -579,6 +582,7 @@ function centerStage(stageContainer, app) {
  */
 function setupInteraction(grid, ghost, { applyDraw, getModule, getRotation, setRotation, onStrokeEnd, canPlaceAt }) {
   let isDrawing = false;
+  let isErasing = false; // stroke started with the right mouse button
 
   // Pointer released: the stroke (click or drag) is complete
   const endStroke = () => {
@@ -620,7 +624,7 @@ function setupInteraction(grid, ghost, { applyDraw, getModule, getRotation, setR
   };
 
   const drawTo = (tile, e) => {
-    const mode = e.shiftKey ? 'remove' : 'place';
+    const mode = isErasing || e.shiftKey ? 'remove' : 'place';
 
     // Also draw tiles skipped by fast pointer movement
     for (const t of tilesBetween(lastDrawn ?? tile, tile)) {
@@ -639,12 +643,14 @@ function setupInteraction(grid, ghost, { applyDraw, getModule, getRotation, setR
   };
 
   grid.on('pointerdown', (e) => {
-    if (e.button !== 0) return;
+    // Left button places, right button erases (middle button pans)
+    if (e.button !== 0 && e.button !== 2) return;
 
     const tile = tileAt(e);
     if (!tile) return;
 
     isDrawing = true;
+    isErasing = e.button === 2;
     lastDrawn = null;
     drawTo(tile, e);
   });
