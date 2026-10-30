@@ -52,9 +52,9 @@ Each step makes the next one cheaper, so the order matters.
 
 - [ ] Rectangle fill
 - [ ] Line tool for corridors
-- [ ] Eyedropper: pick module + rotation from a placed tile
+- [x] Eyedropper: pick module + rotation from a placed tile (middle-click or Alt+click)
 - [ ] Copy / paste / clear a whole floor
-- [ ] Right-click to erase (instead of Shift+click)
+- [x] Right-click to erase (Shift+click still works)
 - [ ] Keyboard shortcuts: `1`–`9` select module, PgUp/PgDn change floor (Ctrl+Z / Ctrl+Y undo/redo ✅ done)
 
 ## 🧭 Planning helpers
@@ -67,7 +67,7 @@ Each step makes the next one cheaper, so the order matters.
 ## 🔧 Quality
 
 - [x] Pin PIXI to an exact version (7.4.3, with integrity hash)
-- [ ] Palette buttons as real `<button>` elements (keyboard accessible)
+- [x] Palette buttons as real `<button>` elements (keyboard accessible)
 - [ ] Touch support: pinch zoom, two-finger pan
 - [ ] Unit tests for non-drawing logic (save loading, validation, undo)
 - [x] Update in-app hint text with all controls (Shift+click remove, R rotate, middle-drag pan)

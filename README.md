@@ -9,7 +9,8 @@ A browser-based planning tool for designing freighter layouts using a grid syste
 - Validation: unreachable modules, duplicate storage numbers and dead-end stairs are listed and marked on the grid
 - Corridors shape themselves (straight, corner, T, cross) based on their neighbours
 - Grouped, searchable module palette
-- Drag & place modules; locked entrance ramp tile
+- Drag & place modules; right-click (or Shift+click) to remove; locked entrance ramp tile
+- Eyedropper: middle-click (or Alt+click) a placed module to select it with its rotation
 - Rotation system for stairs (R key)
 - Zoom & pan (mouse)
 - Auto-save: your current work is restored when you come back (stored in this browser only)

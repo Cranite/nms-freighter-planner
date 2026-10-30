@@ -574,13 +574,15 @@ function centerStage(stageContainer, app) {
  * Interaction system:
  * - Click = place
  * - Right-click or Shift + click = remove
+ * - Middle-click or Alt + click = pick the module (and rotation) from a tile
+ *   (middle-drag still pans)
  * - Drag = continuous drawing
  * - R = rotate module
  *
  * One pointer handler on the grid works out the tile under the pointer.
  * `canPlaceAt(x, y)` tells the ghost preview whether placing is allowed there.
  */
-function setupInteraction(grid, ghost, { applyDraw, getModule, getRotation, setRotation, onStrokeEnd, canPlaceAt }) {
+function setupInteraction(grid, ghost, { applyDraw, pickAt, getModule, getRotation, setRotation, onStrokeEnd, canPlaceAt }) {
   let isDrawing = false;
   let isErasing = false; // stroke started with the right mouse button
 
@@ -642,12 +644,29 @@ function setupInteraction(grid, ghost, { applyDraw, getModule, getRotation, setR
     ghost.hide();
   };
 
+  // Eyedropper: select the module on this tile instead of drawing
+  const pick = (tile) => {
+    pickAt(tile.x, tile.y);
+    updateGhost();
+  };
+
+  // Middle button: a click picks, a drag pans (see setupZoomAndDrag)
+  const MAX_CLICK_MOVE = 4; // px; more movement counts as a drag
+  let middleDown = null; // pointer position where the middle button went down
+
   grid.on('pointerdown', (e) => {
-    // Left button places, right button erases (middle button pans)
+    if (e.button === 1) {
+      middleDown = { x: e.global.x, y: e.global.y };
+      return;
+    }
+
+    // Left button places, right button erases
     if (e.button !== 0 && e.button !== 2) return;
 
     const tile = tileAt(e);
     if (!tile) return;
+
+    if (e.altKey && e.button === 0) return pick(tile);
 
     isDrawing = true;
     isErasing = e.button === 2;
@@ -668,7 +687,14 @@ function setupInteraction(grid, ghost, { applyDraw, getModule, getRotation, setR
   });
 
   grid.on('pointerout', leaveGrid);
-  grid.on('pointerup', endStroke);
+  grid.on('pointerup', (e) => {
+    if (e.button === 1 && middleDown) {
+      const moved = Math.hypot(e.global.x - middleDown.x, e.global.y - middleDown.y);
+      const tile = tileAt(e);
+      if (moved <= MAX_CLICK_MOVE && tile) pick(tile);
+    }
+    endStroke();
+  });
   grid.on('pointerupoutside', endStroke);
 
   window.addEventListener('mouseup', endStroke);

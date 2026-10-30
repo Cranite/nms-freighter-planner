@@ -258,6 +258,19 @@ function applyDraw(x, y, mode) {
 }
 
 /**
+ * Eyedropper: selects the module covering a tile, with its rotation.
+ * Empty tiles and the ramp are ignored.
+ */
+function pickAt(x, y) {
+  const cover = coveringAt(freighter.floors[currentFloor - 1], freighter.floors[currentFloor - 2] ?? null, x, y);
+  if (!cover) return;
+
+  selectedModule = cover.modDef;
+  selectedRotation = cover.tile.rotation;
+  ui.selectModule(cover.modDef.id);
+}
+
+/**
  * Stores a module (or null) on a tile, records it for undo and redraws.
  * `floorNum` can be the floor below, when erasing stairs from their top part.
  */
@@ -280,6 +293,7 @@ function setTile(floorNum, x, y, type, rotation) {
 // Setup pointer interaction
 renderer.setupInteraction({
   applyDraw,
+  pickAt,
   getModule: () => selectedModule,
   getRotation: () => selectedRotation,
   setRotation: (val) => selectedRotation = val,

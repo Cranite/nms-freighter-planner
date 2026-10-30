@@ -6,7 +6,7 @@ import { MODULE_TYPES, CATEGORIES, EMPTY_ID } from './modules.js';
  * Returns functions to update UI state from the app.
  */
 export function setupUI({ onSelectModule, onSelectFloor, onNew, onSave, onLoad, onExport, onImport, onUndo, onRedo, onGoToFloor }) {
-  buildPalette(onSelectModule);
+  const palette = buildPalette(onSelectModule);
 
   // Floor Selector
   const floorSelect = document.getElementById('floorSelect');
@@ -65,6 +65,11 @@ export function setupUI({ onSelectModule, onSelectFloor, onNew, onSave, onLoad, 
       floorSelect.value = n;
     },
 
+    // Reflect a module picked by the app (eyedropper)
+    selectModule(id) {
+      palette.select(id);
+    },
+
     // Validation problems: [{ message, locations: [{ floor, x, y }] }]
     showProblems(problems) {
       const container = document.getElementById('problems');
@@ -117,13 +122,18 @@ function buildPalette(onSelectModule) {
   const paletteContainer = document.getElementById('modulePalette');
   const buttons = [];
 
+  const highlight = (btn) => {
+    buttons.forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  };
+
   const addButton = (mod, parent) => {
     const btn = createModuleButton(mod);
+    btn.dataset.id = mod.id;
 
     // Selection behavior
     btn.addEventListener('click', () => {
-      buttons.forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
+      highlight(btn);
       onSelectModule(mod);
     });
 
@@ -164,6 +174,19 @@ function buildPalette(onSelectModule) {
       if (query && hasMatches) group.open = true;
     });
   });
+
+  return {
+    // Highlight a module's button without selecting it again (keeps rotation)
+    select(id) {
+      const btn = buttons.find(b => b.dataset.id === id);
+      if (!btn) return;
+
+      highlight(btn);
+      const group = btn.closest('details');
+      if (group) group.open = true;
+      if (!btn.hidden) btn.scrollIntoView({ block: 'nearest' });
+    },
+  };
 }
 
 /**
