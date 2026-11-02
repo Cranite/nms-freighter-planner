@@ -7,8 +7,9 @@ const MAX_ENTRIES = 100;
  * Entries:
  * - { kind: 'tiles', floor, changes: [{ x, y, before, after }] }
  *   One drawing stroke (click or drag) on one floor; before/after are { type, rotation }
- * - { kind: 'layout', before, after }
- *   Whole layout replaced (load/import); before/after are freighter objects
+ * - { kind: 'layout', before, after, floor }
+ *   Whole layout replaced; before/after are freighter objects. `floor` is the
+ *   one floor that changed (paste/clear floor), or null (load/import/new)
  *
  * Tile changes of a stroke are collected until endStroke(), so a whole
  * drag undoes as one step.
@@ -44,9 +45,9 @@ export function createHistory(onChange = () => {}) {
     pending = null;
   }
 
-  function recordLayout(before, after) {
+  function recordLayout(before, after, floor = null) {
     endStroke();
-    push({ kind: 'layout', before, after });
+    push({ kind: 'layout', before, after, floor });
   }
 
   /**

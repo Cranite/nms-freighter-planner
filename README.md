@@ -3,7 +3,7 @@
 A browser-based planning tool for designing freighter layouts using a grid system.
 
 ## 🚀 Features
-- Multi-floor support (14 floors, 21×21 capital freighter grid)
+- Multi-floor support (14 floors, 21×21 capital freighter grid); Page Up / Page Down changes floor
 - Onion skin: the floor below shows faintly, the floor above as outlines (each can be switched off)
 - Copy, paste and clear a whole floor (undoable)
 - 39 freighter modules from the game: corridors, stairs, exterior decks, High-Tech / Industrial / Agricultural rooms
@@ -18,7 +18,7 @@ A browser-based planning tool for designing freighter layouts using a grid syste
 - Auto-save: your current work is restored when you come back (stored in this browser only)
 - Save/load a checkpoint via localStorage; "New layout" starts fresh (undoable)
 - Export/import layout as JSON file (versioned format)
-- Undo/redo (Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z) — a drag undoes as one step, load/import can be undone too
+- Undo/redo (Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z) — a drag undoes as one step, load/import can be undone too, and undo shows the floor that changed
 - Texture-based rendering with fallback colors
 
 ## 🧠 Tech Stack

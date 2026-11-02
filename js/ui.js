@@ -58,9 +58,25 @@ export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onCo
   undoBtn.addEventListener('click', onUndo);
   redoBtn.addEventListener('click', onRedo);
 
+  // Change floor by one, as if picked in the floor selector
+  const stepFloor = (delta) => {
+    const n = parseInt(floorSelect.value) + delta;
+    if (n < 1 || n > FLOORS) return;
+    floorSelect.value = n;
+    onSelectFloor(n);
+  };
+
   window.addEventListener('keydown', (e) => {
-    // Leave text fields their own undo
-    if (e.target.closest?.('input, textarea, [contenteditable]')) return;
+    // Leave text fields their own undo and Page Up/Down
+    if (isTypingTarget(e.target)) return;
+
+    // Page Up / Page Down: floor above / below (also while the floor selector has focus)
+    if ((e.key === 'PageUp' || e.key === 'PageDown') && !(e.ctrlKey || e.metaKey || e.altKey || e.shiftKey)) {
+      e.preventDefault();
+      stepFloor(e.key === 'PageUp' ? 1 : -1);
+      return;
+    }
+
     if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
 
     const key = e.key.toLowerCase();
@@ -141,6 +157,15 @@ export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onCo
       });
     },
   };
+}
+
+/**
+ * Does keyboard focus sit in a field where keys type text? Shortcuts skip those.
+ * Checkboxes, buttons and the floor selector don't count: R or Ctrl+Z there
+ * should still work, which is why this isn't just "any input".
+ */
+export function isTypingTarget(target) {
+  return !!target.closest?.('input[type="text"], input[type="search"], textarea, [contenteditable]');
 }
 
 // Onion skin settings: a view preference, so stored apart from the layout.

@@ -1,5 +1,6 @@
 import { TILE_SIZE, GRID_SIZE, RAMP, isLockedTile } from './data.js';
 import { STEP, spansTwoFloors, coveringAt, opensTowards } from './footprint.js';
+import { isTypingTarget } from './ui.js';
 
 /**
  * Corridor textures per shape. At rotation 0 they connect:
@@ -672,8 +673,8 @@ function setupInteraction(grid, ghost, { applyDraw, pickAt, getModule, getRotati
 
   // Rotation hotkey
   window.addEventListener('keydown', (e) => {
-    // Ignore while a form control has focus, and browser shortcuts (Ctrl+R)
-    if (e.target.closest?.('input, select, textarea, [contenteditable]')) return;
+    // Ignore while typing text (search box), and browser shortcuts (Ctrl+R)
+    if (isTypingTarget(e.target)) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
 
     if (e.key.toLowerCase() === 'r') {

@@ -55,7 +55,7 @@ const ui = setupUI({
     if (hasContent && !confirm(`Replace floor ${currentFloor} with the copy of floor ${copiedFloor.floor}? (Ctrl+Z undoes this)`)) return;
 
     const result = pasteFloor(freighter, currentFloor, copiedFloor);
-    replaceFreighter(result);
+    replaceFreighter(result, currentFloor);
     if (result.skipped) {
       alert(`${result.skipped} ${result.skipped === 1 ? 'module was' : 'modules were'} not pasted: `
         + 'something is in the way here (the ramp, or stairs from the floor below or above), or stairs on the top floor.');
@@ -66,7 +66,7 @@ const ui = setupUI({
     if (!floorsWithContent()[currentFloor - 1]) return;
     if (!confirm(`Clear floor ${currentFloor}? (Ctrl+Z undoes this)`)) return;
 
-    replaceFreighter({ freighter: clearFloor(freighter, currentFloor) });
+    replaceFreighter({ freighter: clearFloor(freighter, currentFloor) }, currentFloor);
   },
 
   onNew: () => {
@@ -130,10 +130,12 @@ const ui = setupUI({
 ui.setUndoRedoState(history.canUndo(), history.canRedo());
 
 /**
- * Swaps in a loaded/imported layout (undoable) and redraws
+ * Swaps in a new layout (undoable) and redraws
+ * @param floor the one floor that changed (paste/clear), so undo can show it;
+ *              null when the whole layout changed (load/import/new)
  */
-function replaceFreighter({ freighter: loaded }) {
-  history.recordLayout(freighter, loaded);
+function replaceFreighter({ freighter: loaded }, floor = null) {
+  history.recordLayout(freighter, loaded, floor);
   freighter = loaded;
   drawCurrentFloor();
   onLayoutChanged();
@@ -218,6 +220,11 @@ document.addEventListener('visibilitychange', () => {
 function applyHistoryEntry(entry, side) {
   if (entry.kind === 'layout') {
     freighter = entry[side];
+    // Pasted or cleared floor: go there, so the change is visible
+    if (entry.floor) {
+      currentFloor = entry.floor;
+      ui.setFloor(currentFloor);
+    }
     drawCurrentFloor();
     onLayoutChanged();
     return;
