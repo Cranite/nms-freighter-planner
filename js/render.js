@@ -1,5 +1,6 @@
 import { TILE_SIZE, GRID_SIZE, RAMP, isLockedTile } from './data.js';
 import { STEP, spansTwoFloors, coveringAt, opensTowards } from './footprint.js';
+import { EMPTY_ID } from './modules.js';
 import { isTypingTarget } from './ui.js';
 
 /**
@@ -62,6 +63,7 @@ export async function createRenderer() {
  *   ├─ moduleContainer (placed modules, one display object per module start tile)
  *   ├─ aboveOutlines   (onion skin: outlines of the floor above)
  *   ├─ problemMarkers  (validation problems on this floor)
+ *   ├─ boxPreview      (box being drawn with Ctrl + drag)
  *   └─ ghost.container (preview module)
  */
 function initRenderer(app) {
@@ -78,6 +80,7 @@ function initRenderer(app) {
   const below = createModuleLayer(belowContainer);
   belowContainer.alpha = 0.28;
   const ghost = createGhost(modules.getFloors);
+  const boxPreview = createBoxPreview();
 
   stageContainer.addChild(grid);
   stageContainer.addChild(bridgeLabel);
@@ -86,6 +89,7 @@ function initRenderer(app) {
   stageContainer.addChild(moduleContainer);
   stageContainer.addChild(aboveOutlines);
   stageContainer.addChild(problemMarkers);
+  stageContainer.addChild(boxPreview.container);
   stageContainer.addChild(ghost.container);
   app.stage.addChild(stageContainer);
 
@@ -143,7 +147,7 @@ function initRenderer(app) {
     },
 
     showProblemTiles: (tiles) => drawProblemMarkers(problemMarkers, tiles),
-    setupInteraction: (handlers) => setupInteraction(grid, ghost, handlers),
+    setupInteraction: (handlers) => setupInteraction(grid, ghost, boxPreview, handlers),
   };
 }
 
@@ -531,6 +535,65 @@ function createGhost(getFloors) {
   return { container, show, hide };
 }
 
+/**
+ * Box drawn with Ctrl + drag: faint fill and outline, red marks on tiles
+ * the module can't go, and the box size in the middle
+ */
+function createBoxPreview() {
+  const container = new PIXI.Container();
+  container.visible = false;
+
+  const g = new PIXI.Graphics();
+  const sizeLabel = createLabel('', Math.round(TILE_SIZE * 0.5));
+  container.addChild(g, sizeLabel);
+
+  /**
+   * @param box { x0, y0, x1, y1 } tile corners, inclusive
+   * @param erasing red box, no per-tile marks (erasing works everywhere)
+   * @param canPlaceAt (x, y) → can the selected module go there?
+   */
+  function show({ x0, y0, x1, y1 }, erasing, canPlaceAt) {
+    const color = erasing ? 0xff4d4d : 0xffffff;
+    const width = (x1 - x0 + 1) * TILE_SIZE;
+    const height = (y1 - y0 + 1) * TILE_SIZE;
+
+    g.clear();
+    g.beginFill(color, 0.12);
+    g.drawRect(x0 * TILE_SIZE, y0 * TILE_SIZE, width, height);
+    g.endFill();
+
+    if (!erasing) {
+      g.lineStyle(2, 0xff4d4d);
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+          if (!canPlaceAt(x, y)) g.drawRect(x * TILE_SIZE + 1, y * TILE_SIZE + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+        }
+      }
+    }
+
+    g.lineStyle(2, color);
+    g.drawRect(x0 * TILE_SIZE, y0 * TILE_SIZE, width, height);
+
+    sizeLabel.text = `${x1 - x0 + 1} × ${y1 - y0 + 1}`;
+    sizeLabel.position.set(x0 * TILE_SIZE + width / 2, y0 * TILE_SIZE + height / 2);
+    container.visible = true;
+  }
+
+  function hide() {
+    container.visible = false;
+  }
+
+  return { container, show, hide };
+}
+
+// Box corners from two tiles in any order: { x0, y0, x1, y1 }, inclusive
+function boxBetween(from, to) {
+  return {
+    x0: Math.min(from.x, to.x), y0: Math.min(from.y, to.y),
+    x1: Math.max(from.x, to.x), y1: Math.max(from.y, to.y),
+  };
+}
+
 
 // Zoom + drag handling
 function setupZoomAndDrag(app, stageContainer) {
@@ -648,17 +711,37 @@ function centerStage(stageContainer, app) {
  * - Middle-click or Alt + click = pick the module (and rotation) from a tile
  *   (middle-drag still pans)
  * - Drag = continuous drawing
+ * - Ctrl + drag = fill a box when released (with right button / Shift: erase it);
+ *   Esc cancels. Stairs can't fill a box, so for them it's a normal drag.
  * - R = rotate module
  *
  * One pointer handler on the grid works out the tile under the pointer.
  * `canPlaceAt(x, y)` tells the ghost preview whether placing is allowed there.
  */
-function setupInteraction(grid, ghost, { applyDraw, pickAt, getModule, getRotation, setRotation, onStrokeEnd, canPlaceAt }) {
+function setupInteraction(grid, ghost, boxPreview, { applyDraw, fillBox, pickAt, getModule, getRotation, setRotation, onStrokeEnd, canPlaceAt }) {
   let isDrawing = false;
   let isErasing = false; // stroke started with the right mouse button
 
-  // Pointer released: the stroke (click or drag) is complete
+  // Box being drawn with Ctrl + drag: { from, to, mode } (tiles), or null
+  let box = null;
+
+  const showBox = () => {
+    const erasing = box.mode === 'remove' || getModule()?.id === EMPTY_ID;
+    boxPreview.show(boxBetween(box.from, box.to), erasing, canPlaceAt);
+  };
+
+  // Released: fill the box (one undo step). Esc: drop it.
+  const endBox = (apply) => {
+    if (apply) fillBox(boxBetween(box.from, box.to), box.mode);
+    box = null;
+    boxPreview.hide();
+    onStrokeEnd();
+    updateGhost();
+  };
+
+  // Pointer released: the stroke (click, drag or box) is complete
   const endStroke = () => {
+    if (box) return endBox(true);
     if (!isDrawing) return;
     isDrawing = false;
     onStrokeEnd();
@@ -668,13 +751,14 @@ function setupInteraction(grid, ghost, { applyDraw, pickAt, getModule, getRotati
   let lastDrawn = null; // last tile drawn in the current stroke
 
   const updateGhost = () => {
-    if (hoverTile) ghost.show(hoverTile.x, hoverTile.y, getModule(), getRotation(), canPlaceAt(hoverTile.x, hoverTile.y));
+    if (hoverTile && !box) ghost.show(hoverTile.x, hoverTile.y, getModule(), getRotation(), canPlaceAt(hoverTile.x, hoverTile.y));
   };
 
   // Rotation hotkey
   window.addEventListener('keydown', (e) => {
     // Ignore while typing text (search box), and browser shortcuts (Ctrl+R)
     if (isTypingTarget(e.target)) return;
+    if (e.key === 'Escape' && box) return endBox(false);
     if (e.ctrlKey || e.metaKey || e.altKey) return;
 
     if (e.key.toLowerCase() === 'r') {
@@ -709,6 +793,7 @@ function setupInteraction(grid, ghost, { applyDraw, pickAt, getModule, getRotati
     updateGhost();
   };
 
+  // A box keeps its last corner, so releasing outside the grid still fills it
   const leaveGrid = () => {
     hoverTile = null;
     lastDrawn = null; // don't connect strokes across the outside of the grid
@@ -739,6 +824,15 @@ function setupInteraction(grid, ghost, { applyDraw, pickAt, getModule, getRotati
 
     if (e.altKey && e.button === 0) return pick(tile);
 
+    // Ctrl (Cmd on Mac) + drag: a box instead of a stroke
+    const mode = e.button === 2 || e.shiftKey ? 'remove' : 'place';
+    if ((e.ctrlKey || e.metaKey) && (mode === 'remove' || !spansTwoFloors(getModule()))) {
+      box = { from: tile, to: tile, mode };
+      ghost.hide();
+      showBox();
+      return;
+    }
+
     isDrawing = true;
     isErasing = e.button === 2;
     lastDrawn = null;
@@ -753,7 +847,10 @@ function setupInteraction(grid, ghost, { applyDraw, pickAt, getModule, getRotati
     if (hoverTile && hoverTile.x === tile.x && hoverTile.y === tile.y) return;
     hoverTile = tile;
 
-    if (isDrawing) drawTo(tile, e);
+    if (box) {
+      box.to = tile;
+      showBox();
+    } else if (isDrawing) drawTo(tile, e);
     else updateGhost();
   });
 

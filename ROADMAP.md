@@ -50,7 +50,7 @@ Each step makes the next one cheaper, so the order matters.
 
 ## ✏️ Editing tools
 
-- [ ] Rectangle fill
+- [x] Rectangle fill: Ctrl+drag fills a box, Ctrl+right-drag erases one (stairs: normal drag)
 - [ ] Line tool for corridors
 - [x] Eyedropper: pick module + rotation from a placed tile (middle-click or Alt+click)
 - [x] Copy / paste / clear a whole floor (`js/floorTools.js`; paste skips modules that don't fit)

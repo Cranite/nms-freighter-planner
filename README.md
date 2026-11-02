@@ -12,6 +12,7 @@ A browser-based planning tool for designing freighter layouts using a grid syste
 - Corridors shape themselves (straight, corner, T, cross) based on their neighbours
 - Grouped, searchable module palette
 - Drag & place modules; right-click (or Shift+click) to remove; locked entrance ramp tile
+- Box fill: Ctrl+drag fills a box with the selected module, Ctrl+right-drag erases it (one undo step, Esc cancels)
 - Eyedropper: middle-click (or Alt+click) a placed module to select it with its rotation
 - Rotation system for stairs (R key)
 - Zoom & pan (mouse)

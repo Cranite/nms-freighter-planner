@@ -295,6 +295,30 @@ function applyDraw(x, y, mode) {
   setTile(currentFloor, x, y, selectedModule.id, rotation);
 }
 
+// True while fillBox runs: setTile then leaves redrawing to fillBox
+let fillingBox = false;
+
+/**
+ * Box fill (Ctrl + drag): places or removes on every tile of the box.
+ * applyDraw skips tiles where the module can't go. Redraws once at the end
+ * instead of per tile, so even a whole-floor box is quick.
+ * @param box { x0, y0, x1, y1 } tile corners, inclusive
+ * @param mode 'place' | 'remove'
+ */
+function fillBox({ x0, y0, x1, y1 }, mode) {
+  fillingBox = true;
+  try {
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) applyDraw(x, y, mode);
+    }
+  } finally {
+    fillingBox = false;
+  }
+
+  drawCurrentFloor();
+  onLayoutChanged();
+}
+
 /**
  * Eyedropper: selects the module covering a tile, with its rotation.
  * Empty tiles and the ramp are ignored.
@@ -323,6 +347,9 @@ function setTile(floorNum, x, y, type, rotation) {
   // Part of the current stroke's undo step
   history.recordTile(floorNum, x, y, before, { type, rotation });
 
+  // A box fill redraws once when it's done
+  if (fillingBox) return;
+
   // Re-render the area around the tile (stairs and corridor shapes reach beyond it)
   renderer.drawTile(x, y);
   onLayoutChanged();
@@ -331,6 +358,7 @@ function setTile(floorNum, x, y, type, rotation) {
 // Setup pointer interaction
 renderer.setupInteraction({
   applyDraw,
+  fillBox,
   pickAt,
   getModule: () => selectedModule,
   getRotation: () => selectedRotation,
