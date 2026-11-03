@@ -5,7 +5,7 @@ import { MODULE_TYPES, CATEGORIES, EMPTY_ID } from './modules.js';
  * Builds the sidebar and wires up its controls.
  * Returns functions to update UI state from the app.
  */
-export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onCopyFloor, onPasteFloor, onClearFloor, onNew, onSave, onLoad, onExport, onImport, onUndo, onRedo, onGoToFloor }) {
+export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onViewTurn, onCopyFloor, onPasteFloor, onClearFloor, onNew, onSave, onLoad, onExport, onImport, onUndo, onRedo, onGoToFloor }) {
   const palette = buildPalette(onSelectModule);
 
   // Floor Selector
@@ -30,6 +30,16 @@ export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onCo
     saveOnionSkin(getOnionSkin());
     onOnionSkinChange(getOnionSkin());
   }));
+
+  // View rotation (quarter turns clockwise), remembered in this browser
+  let viewTurns = loadViewTurns();
+  const turnView = (delta) => {
+    viewTurns = (viewTurns + delta + 4) % 4;
+    saveViewTurns(viewTurns);
+    onViewTurn(viewTurns);
+  };
+  document.getElementById('turnLeftBtn').addEventListener('click', () => turnView(-1));
+  document.getElementById('turnRightBtn').addEventListener('click', () => turnView(1));
 
   // Whole-floor tools; Paste is enabled once a floor is copied
   const pasteFloorBtn = document.getElementById('pasteFloorBtn');
@@ -77,6 +87,13 @@ export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onCo
       return;
     }
 
+    // Q / E: turn the view left / right
+    const plainKey = e.key.toLowerCase();
+    if ((plainKey === 'q' || plainKey === 'e') && !(e.ctrlKey || e.metaKey || e.altKey)) {
+      turnView(plainKey === 'q' ? -1 : 1);
+      return;
+    }
+
     if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
 
     const key = e.key.toLowerCase();
@@ -102,6 +119,9 @@ export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onCo
 
     // { below, above }: which neighbouring floors to show
     getOnionSkin,
+
+    // View rotation in quarter turns clockwise (0-3)
+    getViewTurns: () => viewTurns,
 
     // A floor was copied: enable Paste and say which floor it pastes
     setCopiedFloor(n) {
@@ -190,6 +210,26 @@ function saveOnionSkin(settings) {
     localStorage.setItem(ONION_SKIN_KEY, JSON.stringify(settings));
   } catch (err) {
     console.warn('⚠️ Onion skin setting could not be saved', err);
+  }
+}
+
+// View rotation: a view preference too, stored apart from the layout
+const VIEW_TURNS_KEY = 'freighterViewTurns';
+
+function loadViewTurns() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(VIEW_TURNS_KEY));
+    return [0, 1, 2, 3].includes(saved) ? saved : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function saveViewTurns(turns) {
+  try {
+    localStorage.setItem(VIEW_TURNS_KEY, JSON.stringify(turns));
+  } catch (err) {
+    console.warn('⚠️ View rotation could not be saved', err);
   }
 }
 

@@ -23,7 +23,7 @@ function calculateTileSize() {
     minSize,
     Math.min(
       maxSize,
-      Math.floor(Math.min(canvasWidth, canvasHeight) / GRID_SIZE) - 2
+      Math.floor(Math.min(canvasWidth, canvasHeight) / GRID_SIZE) - 3 // room around the grid for the Bridge label
     )
   );
 }
@@ -82,7 +82,7 @@ export async function createRenderer() {
 
 /**
  * Scene graph structure:
- * stageContainer
+ * stageContainer   (turned in steps of 90° around the grid's centre: the view rotation)
  *   ├─ grid            (static grid, single Graphics, receives pointer input)
  *   ├─ bridgeLabel     (marks the bridge side of the grid)
  *   ├─ entranceMarker  (the way in from the bridge, floor 1 only)
@@ -196,6 +196,16 @@ function initRenderer(app) {
       if (floors) drawOnionSkin();
     },
 
+    // Turn the view by `turns` × 90° clockwise (0-3). Only the picture turns: the
+    // layout keeps the bridge at the top (north), so saves and rules don't change.
+    // Pointer positions follow automatically (grid.toLocal undoes the rotation).
+    setViewTurns(turns) {
+      viewTurns = turns;
+      stageContainer.rotation = turns * Math.PI / 2;
+      keepLabelsUpright(stageContainer);
+      placeBridgeLabel(bridgeLabel);
+    },
+
     showProblemTiles: (tiles) => drawProblemMarkers(problemMarkers, tiles),
     setupInteraction: (handlers) => setupInteraction(grid, ghost, edgeGhost, boxPreview, handlers),
   };
@@ -219,6 +229,19 @@ function drawGrid() {
   return g;
 }
 
+// View rotation in quarter turns clockwise (see setViewTurns)
+let viewTurns = 0;
+
+// Text stays readable in a turned view: it turns back by the view rotation
+const uprightRotation = () => -viewTurns * Math.PI / 2;
+
+function keepLabelsUpright(container) {
+  for (const child of container.children) {
+    if (child instanceof PIXI.Text) child.rotation = uprightRotation();
+    else if (child.children?.length) keepLabelsUpright(child);
+  }
+}
+
 // Tile label text (module short names, markers)
 function createLabel(text, fontSize = Math.round(TILE_SIZE * 0.36)) {
   const label = new PIXI.Text(text, {
@@ -230,6 +253,7 @@ function createLabel(text, fontSize = Math.round(TILE_SIZE * 0.36)) {
     strokeThickness: 3,
   });
   label.anchor.set(0.5);
+  label.rotation = uprightRotation();
   label.resolution = 2; // sharp when zoomed in
   return label;
 }
@@ -238,10 +262,19 @@ function createLabel(text, fontSize = Math.round(TILE_SIZE * 0.36)) {
  * Marks the top of the grid as the bridge side
  */
 function drawBridgeLabel() {
-  const label = createLabel('▲ Bridge', Math.round(TILE_SIZE * 0.4));
-  label.x = (GRID_SIZE * TILE_SIZE) / 2;
-  label.y = -TILE_SIZE * 0.6;
+  const label = createLabel('', Math.round(TILE_SIZE * 0.4));
+  label.position.set((GRID_SIZE * TILE_SIZE) / 2, -TILE_SIZE * 0.6);
+  placeBridgeLabel(label);
   return label;
+}
+
+// The bridge label lies along the grid's bridge side, its arrow pointing away
+// from the grid: on the left and right it reads sideways, like a map label,
+// so it fits beside the grid; upside down (bridge at the bottom) it's turned upright
+function placeBridgeLabel(label) {
+  const upsideDown = viewTurns === 2;
+  label.text = upsideDown ? '▼ Bridge' : '▲ Bridge';
+  label.rotation = upsideDown ? Math.PI : 0;
 }
 
 /**
@@ -256,11 +289,13 @@ function drawEntranceMarker() {
   g.beginFill(0x1e8449);
   g.drawRoundedRect(2, -height - 2, TILE_SIZE - 4, height, 4);
   g.endFill();
-  marker.addChild(g);
 
-  const label = createLabel('▼', Math.round(TILE_SIZE * 0.22));
-  label.position.set(TILE_SIZE / 2, -height / 2 - 2);
-  marker.addChild(label);
+  // Arrow into the grid: drawn, not text, so it turns with the view
+  const mid = TILE_SIZE / 2, top = -height * 0.75 - 2, size = height * 0.5;
+  g.beginFill(0xffffff);
+  g.drawPolygon([mid - size * 0.6, top, mid + size * 0.6, top, mid, top + size]);
+  g.endFill();
+  marker.addChild(g);
 
   marker.position.set(BRIDGE.x * TILE_SIZE, 0);
   return marker;
@@ -793,7 +828,9 @@ function createBoxPreview() {
     g.lineStyle(2, color);
     g.drawRect(x0 * TILE_SIZE, y0 * TILE_SIZE, width, height);
 
-    sizeLabel.text = `${x1 - x0 + 1} × ${y1 - y0 + 1}`;
+    // Width × height as seen on screen: a quarter turn swaps them
+    const across = x1 - x0 + 1, down = y1 - y0 + 1;
+    sizeLabel.text = viewTurns % 2 ? `${down} × ${across}` : `${across} × ${down}`;
     sizeLabel.position.set(x0 * TILE_SIZE + width / 2, y0 * TILE_SIZE + height / 2);
     container.visible = true;
   }

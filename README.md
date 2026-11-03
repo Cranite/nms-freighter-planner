@@ -18,6 +18,7 @@ A browser-based planning tool for designing freighter layouts using a grid syste
 - Eyedropper: middle-click (or Alt+click) a placed module to select it with its rotation
 - Rotation system for stairs (R key)
 - Zoom & pan (mouse)
+- Turn the view in 90° steps (⟲ / ⟳ buttons, Q / E): only the picture turns, labels stay upright, and the layout and saves don't change; remembered in this browser
 - Auto-save: your current work is restored when you come back (stored in this browser only)
 - Save/load a checkpoint via localStorage; "New layout" starts fresh (undoable)
 - Export/import layout as JSON file (versioned format)

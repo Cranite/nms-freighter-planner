@@ -20,6 +20,9 @@ let currentFloor = 1;
 let selectedModule = null;
 let selectedRotation = 0; // 0, 90, 180, 270
 
+// Stairs rotation that climbs up on screen: in a turned view that isn't north
+const upOnScreen = () => (4 - ui.getViewTurns()) % 4 * 90;
+
 // Floor copied with "Copy floor" (kept until the page is closed)
 let copiedFloor = null;
 
@@ -33,12 +36,14 @@ const renderer = await createRenderer();
 const ui = setupUI({
   onSelectModule: (mod) => {
     selectedModule = mod;
-    selectedRotation = 0; // reset rotation on new selection
+    selectedRotation = upOnScreen(); // reset rotation on new selection
   },
 
   onSelectFloor: (n) => goToFloor(n),
 
   onOnionSkinChange: (settings) => renderer.setOnionSkin(settings),
+
+  onViewTurn: (turns) => renderer.setViewTurns(turns),
 
   // Clicked a problem in the list
   onGoToFloor: (n) => {
@@ -441,7 +446,8 @@ renderer.setupInteraction({
     || canPlace(freighter, selectedModule, currentFloor, x, y, selectedModule.rotatable ? selectedRotation : 0),
 });
 
-// Initial render, with the onion skin settings remembered in this browser
+// Initial render, with the onion skin and view rotation remembered in this browser
 renderer.setOnionSkin(ui.getOnionSkin());
+renderer.setViewTurns(ui.getViewTurns());
 drawCurrentFloor();
 onLayoutChanged();
