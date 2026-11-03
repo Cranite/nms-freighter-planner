@@ -20,10 +20,10 @@ Each step makes the next one cheaper, so the order matters.
 - [x] **4. More modules**
   - 39 modules from the wiki's Freighter Base Building list, checked in-game incl. newer Passageway, Commercial Room (Expansion) and Steel Staircase (`js/modules.js`), grouped by category, searchable palette
   - Corridors shape themselves from their neighbours (as in the game since Endurance); rotation only for stairs
-  - Locked entrance ramp tile on floor 1
+  - The bridge entrance: just outside the build area, you walk in onto tile (10, 0) on floor 1; the whole grid can be built on
   - Stairs cover 2 tiles on their floor and the same 2 above (checked in-game); stored once at the low end (`js/footprint.js`)
 - [x] **5. Validation** (`js/validation.js`; warnings only, building is never blocked)
-  - Modules not reachable from the ramp (interior modules all connect to neighbours; stairs only at their ends)
+  - Modules not reachable from the bridge (interior modules all connect to neighbours; stairs only at their ends)
   - Each Storage Room number (0–9) only once per freighter
   - Reachable stairs with nothing connected at the bottom or top
   - Problems list in the sidebar (click → floor) and red markers on the grid
@@ -32,7 +32,7 @@ Each step makes the next one cheaper, so the order matters.
   - Later: auto-snapping
 - [ ] **Wall pieces: Internal Freighter Wall, Bulkhead Door, Reinforced Window**
   - [x] Edge layer in data and saves (`floor.walls`, `js/walls.js`), palette, place/drag/erase along edges, drawing, undo, copy/paste/clear floor, eyedropper
-  - [x] Placement rules from the game: next to the interior (rooms, corridors, the ramp), stairs only at their entrance and exit, never between two exterior pieces; walls go when their room does
+  - [x] Placement rules from the game: next to the interior (rooms, corridors), stairs only at their entrance and exit, never between two exterior pieces; walls go when their room does
   - [x] Validation: walls and windows block walking, a Bulkhead Door is the only way between the interior and the exterior (so exterior pieces get checked again)
   - [x] Extras: Ctrl+drag outlines a box with walls (Ctrl+right-drag clears it), walls in the onion skin, corridor and catwalk shapes follow walls and doors
 - [ ] **Ladder Module**

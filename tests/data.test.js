@@ -45,9 +45,9 @@ test('unknown modules are skipped and counted', () => {
   assert.equal(typeAt(freighter, 1, 5, 5).type, null);
 });
 
-test('a module saved on the ramp tile is dropped', () => {
-  const json = savedWith(d => { d.floors[0].tiles[2][10] = { type: 'scanner_room', rotation: 0 }; });
-  assert.equal(typeAt(deserializeFreighter(json).freighter, 1, 10, 2).type, null);
+test('a module saved in front of the bridge is kept: the whole grid can be built on', () => {
+  const json = savedWith(d => { d.floors[0].tiles[0][10] = { type: 'scanner_room', rotation: 0 }; });
+  assert.equal(typeAt(deserializeFreighter(json).freighter, 1, 10, 0).type, 'scanner_room');
 });
 
 test('stairs saved on the top floor are dropped', () => {

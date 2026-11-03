@@ -51,12 +51,13 @@ describe('canPlace: can a module go here?', () => {
     assert.equal(canPlace(layout(), room, 1, 5, 5, 0), true);
   });
 
-  test('nothing can be built on the entrance ramp', () => {
-    assert.equal(canPlace(layout(), room, 1, 10, 2, 0), false);
+  test('the whole grid can be built on, also in front of the bridge', () => {
+    assert.equal(canPlace(layout(), room, 1, 10, 0, 0), true);
+    assert.equal(canPlace(layout(), room, 1, 10, 2, 0), true); // where the old ramp tile was
   });
 
-  test('the ramp tile is only locked on floor 1', () => {
-    assert.equal(canPlace(layout(), room, 2, 10, 2, 0), true);
+  test('nothing can be built on the bridge, outside the grid', () => {
+    assert.equal(canPlace(layout(), room, 1, 10, -1, 0), false);
   });
 
   test('a module can replace the module on its own tile', () => {
@@ -97,8 +98,9 @@ describe('opensTowards: where you can walk out of a tile (interior)', () => {
     }
   });
 
-  test('the ramp opens on all sides', () => {
-    assert.equal(opensTowards(...floorPair(layout(), 1), 10, 2, ...SOUTH), true);
+  test('the bridge, just north of (10, 0) on floor 1, opens into the grid', () => {
+    assert.equal(opensTowards(...floorPair(layout(), 1), 10, -1, ...SOUTH), true);
+    assert.equal(opensTowards(...floorPair(layout(), 2), 10, -1, ...SOUTH), false); // floor 1 only
   });
 
   test('empty tiles don\'t open', () => {
@@ -135,10 +137,10 @@ describe('exteriorOpensTowards: how exterior pieces join up', () => {
     }
   });
 
-  test('interior modules and the ramp never join the exterior', () => {
+  test('interior modules and the bridge never join the exterior', () => {
     const freighter = layout({ 1: [[5, 5, 'freighter_corridor']] });
     assert.equal(exteriorOpensTowards(...floorPair(freighter, 1), 5, 5, ...NORTH), false);
-    assert.equal(exteriorOpensTowards(...floorPair(freighter, 1), 10, 2, ...SOUTH), false);
+    assert.equal(exteriorOpensTowards(...floorPair(freighter, 1), 10, -1, ...SOUTH), false);
   });
 
   test('exterior stairs join only at their ends', () => {

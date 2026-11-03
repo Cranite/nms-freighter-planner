@@ -1,6 +1,6 @@
 import {
   createEmptyFreighter, saveFreighter, loadFreighter, autosaveFreighter, loadAutosave,
-  serializeFreighter, deserializeFreighter, isLockedTile,
+  serializeFreighter, deserializeFreighter,
 } from './data.js';
 import { EMPTY_ID, MODULE_BY_ID } from './modules.js';
 import { canPlace, coveringAt, spansTwoFloors } from './footprint.js';
@@ -60,7 +60,7 @@ const ui = setupUI({
     replaceFreighter(result, currentFloor);
     if (result.skipped) {
       alert(`${result.skipped} ${result.skipped === 1 ? 'module was' : 'modules were'} not pasted: `
-        + 'something is in the way here (the ramp, or stairs from the floor below or above), or stairs on the top floor.');
+        + 'something is in the way here (stairs from the floor below or above), or stairs on the top floor.');
     }
   },
 
@@ -281,9 +281,6 @@ function skippedNote(skipped) {
  * @param mode 'place' | 'remove'
  */
 function applyDraw(x, y, mode) {
-  // Entrance ramp can't be built on
-  if (isLockedTile(currentFloor, x, y)) return;
-
   // 'Empty' module works as an eraser
   if (mode === 'place' && selectedModule?.id === EMPTY_ID) {
     mode = 'remove';
@@ -387,7 +384,7 @@ function pickWallAt(edge) {
 
 /**
  * Eyedropper: selects the module covering a tile, with its rotation.
- * Empty tiles and the ramp are ignored.
+ * Empty tiles are ignored.
  */
 function pickAt(x, y) {
   const cover = coveringAt(freighter.floors[currentFloor - 1], freighter.floors[currentFloor - 2] ?? null, x, y);

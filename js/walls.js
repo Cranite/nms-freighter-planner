@@ -1,4 +1,4 @@
-import { GRID_SIZE } from './data.js';
+import { GRID_SIZE, isBridge } from './data.js';
 import { MODULE_BY_ID } from './modules.js';
 import { coveringAt, opensTowards, exteriorOpensTowards, spansTwoFloors, stairsOpenTowards } from './footprint.js';
 
@@ -11,7 +11,7 @@ import { coveringAt, opensTowards, exteriorOpensTowards, spansTwoFloors, stairsO
  * every edge has one name and is stored once (floor.walls, see data.js).
  *
  * In game a wall piece needs the interior on at least one side:
- * - Rooms, corridors and the ramp take one on all 4 sides: also between two
+ * - Rooms and corridors take one on all 4 sides: also between two
  *   tiles of a merged room, and across the doorways between rooms and corridors
  * - Stairs only at their entrance and exit, not along their sides
  * - Never between two exterior pieces, or an exterior piece and empty space
@@ -75,10 +75,12 @@ export function canHaveWall(floor, floorBelow, edge) {
  *   to exterior (exteriorOpensTowards), but not to each other: rooms have
  *   their own wall towards the outside
  * - A Bulkhead Door also connects the interior to the exterior
+ * Either tile may be the bridge, just outside the grid: the way in.
  */
 export function connects(floor, floorBelow, x, y, dx, dy) {
   const nx = x + dx, ny = y + dy;
-  if (!inGrid(x, y) || !inGrid(nx, ny)) return false;
+  const onMap = (tx, ty) => inGrid(tx, ty) || isBridge(floor.floor, tx, ty);
+  if (!onMap(x, y) || !onMap(nx, ny)) return false;
 
   const piece = MODULE_BY_ID[getWall(floor, tileEdge(x, y, dx, dy))];
   if (piece && !piece.door) return false;

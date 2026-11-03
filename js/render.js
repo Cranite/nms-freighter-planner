@@ -1,4 +1,4 @@
-import { GRID_SIZE, RAMP, isLockedTile } from './data.js';
+import { GRID_SIZE, BRIDGE, isBridge } from './data.js';
 import { STEP, spansTwoFloors, coveringAt, opensTowards, exteriorOpensTowards } from './footprint.js';
 import { EMPTY_ID, MODULE_BY_ID } from './modules.js';
 import { tileEdge, getWall, boxOutline } from './walls.js';
@@ -85,8 +85,8 @@ export async function createRenderer() {
  * stageContainer
  *   ├─ grid            (static grid, single Graphics, receives pointer input)
  *   ├─ bridgeLabel     (marks the bridge side of the grid)
+ *   ├─ entranceMarker  (the way in from the bridge, floor 1 only)
  *   ├─ belowContainer  (onion skin: the floor below, faint: its modules and walls)
- *   ├─ rampMarker      (locked entrance ramp tile, floor 1 only)
  *   ├─ moduleContainer (placed modules, one display object per module start tile)
  *   ├─ wallLayer       (wall pieces on the edges between tiles)
  *   ├─ aboveOutlines   (onion skin: outlines of the floor above, and its walls as thin lines)
@@ -98,7 +98,7 @@ export async function createRenderer() {
 function initRenderer(app) {
   const grid = drawGrid();
   const bridgeLabel = drawBridgeLabel();
-  const rampMarker = drawRampMarker();
+  const entranceMarker = drawEntranceMarker();
   const belowContainer = new PIXI.Container();
   const belowModules = new PIXI.Container();
   const belowWalls = new PIXI.Graphics();
@@ -109,7 +109,7 @@ function initRenderer(app) {
   const problemMarkers = new PIXI.Graphics();
   const stageContainer = new PIXI.Container();
 
-  const modules = createModuleLayer(moduleContainer, rampMarker);
+  const modules = createModuleLayer(moduleContainer, entranceMarker);
   const below = createModuleLayer(belowModules);
   belowContainer.alpha = 0.28;
   const ghost = createGhost(modules.getFloors);
@@ -118,8 +118,8 @@ function initRenderer(app) {
 
   stageContainer.addChild(grid);
   stageContainer.addChild(bridgeLabel);
+  stageContainer.addChild(entranceMarker);
   stageContainer.addChild(belowContainer);
-  stageContainer.addChild(rampMarker);
   stageContainer.addChild(moduleContainer);
   stageContainer.addChild(wallLayer);
   stageContainer.addChild(aboveOutlines);
@@ -235,7 +235,7 @@ function createLabel(text, fontSize = Math.round(TILE_SIZE * 0.36)) {
 }
 
 /**
- * Marks the top of the grid as the bridge side (ramp entrance)
+ * Marks the top of the grid as the bridge side
  */
 function drawBridgeLabel() {
   const label = createLabel('▲ Bridge', Math.round(TILE_SIZE * 0.4));
@@ -245,22 +245,24 @@ function drawBridgeLabel() {
 }
 
 /**
- * Locked entrance ramp tile (can't be built on)
+ * The way in from the bridge: a tab just above the build area, pointing
+ * at tile (BRIDGE.x, 0), the tile that has to connect to it
  */
-function drawRampMarker() {
+function drawEntranceMarker() {
   const marker = new PIXI.Container();
+  const height = TILE_SIZE * 0.34;
 
   const g = new PIXI.Graphics();
   g.beginFill(0x1e8449);
-  g.drawRoundedRect(2, 2, TILE_SIZE - 4, TILE_SIZE - 4, 4);
+  g.drawRoundedRect(2, -height - 2, TILE_SIZE - 4, height, 4);
   g.endFill();
   marker.addChild(g);
 
-  const label = createLabel('RAMP', Math.round(TILE_SIZE * 0.24));
-  label.position.set(TILE_SIZE / 2, TILE_SIZE / 2);
+  const label = createLabel('▼', Math.round(TILE_SIZE * 0.22));
+  label.position.set(TILE_SIZE / 2, -height / 2 - 2);
   marker.addChild(label);
 
-  marker.position.set(RAMP.x * TILE_SIZE, RAMP.y * TILE_SIZE);
+  marker.position.set(BRIDGE.x * TILE_SIZE, 0);
   return marker;
 }
 
@@ -350,8 +352,9 @@ function corridorShape(mask) {
 
 /**
  * Sides of tile (x, y) whose neighbour opens towards it.
- * `opens` is the rule: opensTowards for corridors (ramp, interior modules,
- * stairs only at their ends), exteriorOpensTowards for catwalks and platforms.
+ * `opens` is the rule: opensTowards for corridors (interior modules, stairs
+ * only at their ends, and the bridge north of (BRIDGE.x, 0)),
+ * exteriorOpensTowards for catwalks and platforms.
  * A wall or window closes a side; a Bulkhead Door joins whatever is behind it,
  * inside or outside (a corridor out onto a catwalk, a catwalk up to a door).
  */
@@ -360,7 +363,8 @@ function neighbourMask(floor, floorBelow, x, y, opens = opensTowards) {
 
   for (const [dx, dy, dir] of NEIGHBOURS) {
     const nx = x + dx, ny = y + dy;
-    if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE) continue;
+    const inGrid = nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE;
+    if (!inGrid && !isBridge(floor.floor, nx, ny)) continue;
 
     const piece = MODULE_BY_ID[getWall(floor, tileEdge(x, y, dx, dy))];
     if (piece && !piece.door) continue;
@@ -561,7 +565,7 @@ function createStairsObject(modDef, visual, x, y) {
  * look changed are rebuilt (partial rendering). Objects live on the tile
  * where a module starts; stairs extend from there over their other tile.
  */
-function createModuleLayer(container, rampMarker = null) {
+function createModuleLayer(container, entranceMarker = null) {
   // cells[y][x] = { key, obj } or null
   const cells = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
 
@@ -607,7 +611,7 @@ function createModuleLayer(container, rampMarker = null) {
   function drawFloor(newFloor, newFloorBelow = null) {
     floor = newFloor;
     floorBelow = newFloorBelow;
-    if (rampMarker) rampMarker.visible = floor.floor === RAMP.floor;
+    if (entranceMarker) entranceMarker.visible = floor.floor === BRIDGE.floor;
 
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
@@ -642,7 +646,7 @@ function createGhost(getFloors) {
 
   function show(x, y, module, rotation, valid = true) {
     const { floor, floorBelow } = getFloors();
-    if (!module || !floor || isLockedTile(floor.floor, x, y)) return hide();
+    if (!module || !floor) return hide();
 
     const visual = visualFor(module, floor, floorBelow, x, y, rotation);
 

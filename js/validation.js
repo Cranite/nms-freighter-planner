@@ -1,4 +1,4 @@
-import { GRID_SIZE, RAMP } from './data.js';
+import { GRID_SIZE, BRIDGE } from './data.js';
 import { MODULE_BY_ID } from './modules.js';
 import { STEP, spansTwoFloors, coveringAt } from './footprint.js';
 import { connects } from './walls.js';
@@ -8,7 +8,7 @@ import { connects } from './walls.js';
  * building, so half-finished plans are fine.
  *
  * Checks:
- * - Modules that can't be reached from the entrance ramp (walking through
+ * - Modules that can't be reached from the bridge (walking through
  *   connected tiles and up/down stairs; walls and windows block the way,
  *   and exterior pieces need a Bulkhead Door to the interior)
  * - Storage Room numbers used more than once (each 0–9 once per freighter)
@@ -53,7 +53,7 @@ export function validateLayout(freighter) {
   for (const [floor, mods] of unreachableByFloor) {
     const doorHint = mods.some(m => m.modDef.exterior) ? ' (exterior pieces need a Bulkhead Door)' : '';
     problems.push({
-      message: `Floor ${floor}: ${mods.length} ${mods.length === 1 ? 'module' : 'modules'} can't be reached from the ramp${doorHint}`,
+      message: `Floor ${floor}: ${mods.length} ${mods.length === 1 ? 'module' : 'modules'} can't be reached from the bridge${doorHint}`,
       locations: mods.flatMap(m => m.locations),
     });
   }
@@ -103,13 +103,15 @@ const cellKey = (floor, x, y) => `${floor}:${x}:${y}`;
 const inGrid = (x, y) => x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE;
 
 /**
- * All tiles you can walk to from the ramp (breadth-first search).
+ * All tiles you can walk to from the bridge (breadth-first search).
+ * It starts on the bridge, just outside the grid, and walks in across the
+ * north edge of (BRIDGE.x, 0).
  * Moves: to a neighbouring tile they connect to (see connects in walls.js),
  * and between the low end of stairs and their high end on the floor above.
  */
 function findReachable(floors, floorPair) {
-  const reached = new Set([cellKey(RAMP.floor, RAMP.x, RAMP.y)]);
-  const queue = [{ f: RAMP.floor, x: RAMP.x, y: RAMP.y }];
+  const reached = new Set([cellKey(BRIDGE.floor, BRIDGE.x, BRIDGE.y)]);
+  const queue = [{ f: BRIDGE.floor, x: BRIDGE.x, y: BRIDGE.y }];
 
   const visit = (f, x, y) => {
     const key = cellKey(f, x, y);

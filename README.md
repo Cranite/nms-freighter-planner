@@ -13,7 +13,7 @@ A browser-based planning tool for designing freighter layouts using a grid syste
 - Corridors shape themselves (straight, corner, T, cross) based on their neighbours
 - Exterior catwalks form connected paths and platforms merge into decks, with a railing on their open sides
 - Grouped, searchable module palette
-- Drag & place modules; right-click (or Shift+click) to remove; locked entrance ramp tile
+- Drag & place modules; right-click (or Shift+click) to remove; the way in from the bridge is marked above tile (10, 0) on floor 1
 - Box fill: Ctrl+drag fills a box with the selected module, Ctrl+right-drag erases it (one undo step, Esc cancels)
 - Eyedropper: middle-click (or Alt+click) a placed module to select it with its rotation
 - Rotation system for stairs (R key)
@@ -36,7 +36,7 @@ The project is structured into clear layers:
 - `modules.js` → freighter module definitions (game data)
 - `footprint.js` → which tiles a module covers (stairs: 2 tiles on 2 floors), where it can be placed and where you can walk out of a tile
 - `walls.js` → wall pieces on the edges between tiles: where they can go, and cleaning up walls that lost their room
-- `validation.js` → layout checks (reachability from the ramp, storage numbers, stairs ends)
+- `validation.js` → layout checks (reachability from the bridge, storage numbers, stairs ends)
 - `floorTools.js` → copy, paste and clear a whole floor
 - `render.js` → PIXI rendering & interaction logic
 - `ui.js` → DOM-based UI

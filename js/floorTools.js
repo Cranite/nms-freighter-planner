@@ -49,7 +49,7 @@ function withEmptyFloor(freighter, floorNum) {
 
 /**
  * Replaces floor `floorNum` with a copied floor.
- * Modules that don't fit here are skipped: the ramp, stairs arriving
+ * Modules that don't fit here are skipped: stairs arriving
  * from the floor below, something in the way on the floor above, or
  * stairs on the top floor. Walls are pasted where they still fit with the
  * modules here (not counted in skipped). Returns { freighter, skipped }.

@@ -1,4 +1,4 @@
-import { GRID_SIZE, FLOORS, isLockedTile } from './data.js';
+import { GRID_SIZE, FLOORS, isBridge } from './data.js';
 import { MODULE_BY_ID } from './modules.js';
 
 /**
@@ -59,7 +59,7 @@ export function coveringAt(floor, floorBelow, x, y) {
 
 /**
  * Whether you can walk out of tile (x, y) on `floor` towards (dx, dy).
- * - Entrance ramp: all sides
+ * - The bridge (just outside the grid): all sides, so it joins the module on (BRIDGE.x, 0)
  * - Interior modules (corridors, rooms): all sides; neighbours connect
  *   through doorways or merge into bigger rooms
  * - Stairs: only behind their low end, and past their high end on the floor above
@@ -68,7 +68,7 @@ export function coveringAt(floor, floorBelow, x, y) {
  * Two neighbouring tiles connect when both open towards each other.
  */
 export function opensTowards(floor, floorBelow, x, y, dx, dy) {
-  if (isLockedTile(floor.floor, x, y)) return true;
+  if (isBridge(floor.floor, x, y)) return true;
 
   const cover = coveringAt(floor, floorBelow, x, y);
   if (!cover || cover.modDef.exterior || cover.modDef.kind === 'eraser') return false;
@@ -81,7 +81,7 @@ export function opensTowards(floor, floorBelow, x, y, dx, dy) {
  * The same for the outside of the hull: whether an exterior piece on
  * tile (x, y) joins up with the exterior piece towards (dx, dy).
  * Catwalks and platforms open on all sides, exterior stairs only at their ends.
- * Interior modules and the ramp never count (that needs a Bulkhead Door).
+ * Interior modules and the bridge never count (that needs a Bulkhead Door).
  */
 export function exteriorOpensTowards(floor, floorBelow, x, y, dx, dy) {
   const cover = coveringAt(floor, floorBelow, x, y);
@@ -100,8 +100,7 @@ export function stairsOpenTowards(cover, dx, dy) {
 
 /**
  * Whether `modDef` can be placed at (x, y) on floor `floorNum`:
- * every tile of its footprint must be inside the build area, not the
- * ramp, and free. Replacing the module already stored on (x, y) is fine.
+ * every tile of its footprint must be inside the build area and free. Replacing the module already stored on (x, y) is fine.
  */
 export function canPlace(freighter, modDef, floorNum, x, y, rotation) {
   const floors = freighter.floors;
@@ -116,7 +115,7 @@ export function canPlace(freighter, modDef, floorNum, x, y, rotation) {
   }
 
   return tiles.every(({ f, x: tx, y: ty }) => {
-    if (!inGrid(tx, ty) || isLockedTile(f, tx, ty)) return false;
+    if (!inGrid(tx, ty)) return false;
 
     const cover = coveringAt(floors[f - 1], floors[f - 2] ?? null, tx, ty);
     return !cover || isOwnTile(cover);

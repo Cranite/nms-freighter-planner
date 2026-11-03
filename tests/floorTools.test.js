@@ -32,12 +32,12 @@ test('paste replaces the floor with the copy', () => {
   assert.equal(typeAt(result, 3, 1, 1), null);
 });
 
-test('paste onto floor 1 skips the ramp tile', () => {
-  const freighter = layout({ 2: [[10, 2, 'scanner_room']] });
+test('paste onto floor 1 also fills the tile in front of the bridge', () => {
+  const freighter = layout({ 2: [[10, 0, 'scanner_room']] });
   const { freighter: result, skipped } = pasteFloor(freighter, 1, copyFloor(freighter, 2));
 
-  assert.equal(skipped, 1);
-  assert.equal(typeAt(result, 1, 10, 2), null);
+  assert.equal(skipped, 0);
+  assert.equal(typeAt(result, 1, 10, 0), 'scanner_room');
 });
 
 test('paste skips stairs on the top floor', () => {

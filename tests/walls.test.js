@@ -59,9 +59,9 @@ describe('canHaveWall: where a wall piece can go', () => {
     assert.equal(canWallBeside(freighter, 1, GRID_SIZE - 1, GRID_SIZE - 1, EAST), true);
   });
 
-  test('around the entrance ramp', () => {
-    assert.equal(canWallBeside(layout(), 1, 10, 2, SOUTH), true);
-    assert.equal(canWallBeside(layout(), 2, 10, 2, SOUTH), false); // the ramp is on floor 1 only
+  test('between the bridge and the module in front of it', () => {
+    assert.equal(canWallBeside(layout({ 1: [[10, 0, 'freighter_corridor']] }), 1, 10, 0, NORTH), true);
+    assert.equal(canWallBeside(layout(), 1, 10, 0, NORTH), false); // nothing built there yet
   });
 
   test('not between empty tiles', () => {

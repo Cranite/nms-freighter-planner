@@ -7,14 +7,14 @@ export const GRID_SIZE = 21;
 export const FLOORS = 14;
 
 /**
- * Entrance ramp from the bridge: the one tile on a capital freighter
- * that can't be built on. Floor 1, centre column, two rows from the
- * bridge-side build limit (top of the grid = towards the bridge).
+ * The bridge, where you walk in from: just outside the build area, north of
+ * the centre column on floor 1 (top of the grid = towards the bridge).
+ * The way in is the north edge of tile (BRIDGE.x, 0); the whole grid can be built on.
  */
-export const RAMP = { floor: 1, x: (GRID_SIZE - 1) / 2, y: 2 };
+export const BRIDGE = { floor: 1, x: (GRID_SIZE - 1) / 2, y: -1 };
 
-export function isLockedTile(floor, x, y) {
-  return floor === RAMP.floor && x === RAMP.x && y === RAMP.y;
+export function isBridge(floor, x, y) {
+  return floor === BRIDGE.floor && x === BRIDGE.x && y === BRIDGE.y;
 }
 
 const ROTATIONS = [0, 90, 180, 270];
@@ -155,7 +155,7 @@ export function deserializeFreighter(json) {
     floor.tiles.forEach((row, y) => {
       row.forEach((tile, x) => {
         const saved = savedRows[y]?.[x];
-        if (!saved?.type || saved.type === EMPTY_ID || isLockedTile(floor.floor, x, y)) return;
+        if (!saved?.type || saved.type === EMPTY_ID) return;
 
         // Wall pieces belong on edges, not tiles
         const modDef = MODULE_BY_ID[saved.type];
