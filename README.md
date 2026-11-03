@@ -41,6 +41,15 @@ The project is structured into clear layers:
 - `history.js` → undo/redo history
 - `main.js` → orchestration / application logic
 
+## 🧪 Tests
+Unit tests for the logic (footprints, validation, undo history, floor tools, save format) live in `tests/`. They use Node's built-in test runner, so there's nothing to install (Node 22 or newer):
+
+```bash
+npm test
+```
+
+Drawing and mouse handling (`render.js`, `ui.js`, `main.js`) need a browser and aren't covered; check those in the app.
+
 ## 🔮 Future Improvements
 Planned order:
 1. ~~Export/import layout as JSON file~~ ✅

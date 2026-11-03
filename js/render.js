@@ -1,7 +1,33 @@
-import { TILE_SIZE, GRID_SIZE, RAMP, isLockedTile } from './data.js';
+import { GRID_SIZE, RAMP, isLockedTile } from './data.js';
 import { STEP, spansTwoFloors, coveringAt, opensTowards, exteriorOpensTowards } from './footprint.js';
 import { EMPTY_ID } from './modules.js';
 import { isTypingTarget } from './ui.js';
+
+/**
+ * Calculates tile size based on viewport.
+ * Keeps tiles between min/max for usability.
+ * Lives here, not in data.js: it measures the page, and data.js
+ * must also load without one (unit tests run in Node).
+ */
+function calculateTileSize() {
+  // Measure the actual canvas area (sidebar width incl. padding/border excluded)
+  const canvasContainer = document.getElementById('canvasContainer');
+  const canvasWidth = canvasContainer.clientWidth;
+  const canvasHeight = canvasContainer.clientHeight;
+  
+  const minSize = 24;
+  const maxSize = 48;
+
+  return Math.max(
+    minSize,
+    Math.min(
+      maxSize,
+      Math.floor(Math.min(canvasWidth, canvasHeight) / GRID_SIZE) - 2
+    )
+  );
+}
+
+const TILE_SIZE = calculateTileSize();
 
 /**
  * Corridor textures per shape. At rotation 0 they connect:

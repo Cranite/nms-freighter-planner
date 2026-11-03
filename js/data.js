@@ -6,31 +6,6 @@ export const GRID_SIZE = 21;
 // Number of floors in freighter
 export const FLOORS = 14;
 
-
-/**
- * Calculates tile size based on viewport.
- * Keeps tiles between min/max for usability.
- */
-function calculateTileSize() {
-  // Measure the actual canvas area (sidebar width incl. padding/border excluded)
-  const canvasContainer = document.getElementById('canvasContainer');
-  const canvasWidth = canvasContainer.clientWidth;
-  const canvasHeight = canvasContainer.clientHeight;
-  
-  const minSize = 24;
-  const maxSize = 48;
-
-  return Math.max(
-    minSize,
-    Math.min(
-      maxSize,
-      Math.floor(Math.min(canvasWidth, canvasHeight) / GRID_SIZE) - 2
-    )
-  );
-}
-
-export const TILE_SIZE = calculateTileSize();
-
 /**
  * Entrance ramp from the bridge: the one tile on a capital freighter
  * that can't be built on. Floor 1, centre column, two rows from the

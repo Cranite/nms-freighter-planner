@@ -1,0 +1,9 @@
+{
+  "name": "nms-freighter-planner",
+  "private": true,
+  "description": "No Man's Sky freighter base planner. No build step; package.json is only here for the unit tests.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.js\""
+  }
+}
