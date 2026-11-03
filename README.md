@@ -9,7 +9,7 @@ A browser-based planning tool for designing freighter layouts using a grid syste
 - 39 freighter modules from the game: corridors, stairs, exterior decks, High-Tech / Industrial / Agricultural rooms
 - Wall pieces on the edges between tiles: Internal Freighter Wall, Reinforced Window and Bulkhead Door. Click or drag along an edge; they only go where the game allows (next to the interior, at the ends of stairs) and are removed together with the room next to them
 - Stairs span 2 tiles and 2 floors, like in the game; occupied tiles can't be built on
-- Validation: unreachable modules, duplicate storage numbers and dead-end stairs are listed and marked on the grid
+- Validation: unreachable modules, duplicate storage numbers and dead-end stairs are listed and marked on the grid. Walls and windows block the way; the exterior (catwalks, platforms, exterior stairs) is only reachable through a Bulkhead Door
 - Corridors shape themselves (straight, corner, T, cross) based on their neighbours
 - Exterior catwalks form connected paths and platforms merge into decks, with a railing on their open sides
 - Grouped, searchable module palette

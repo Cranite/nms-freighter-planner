@@ -27,13 +27,13 @@ Each step makes the next one cheaper, so the order matters.
   - Each Storage Room number (0–9) only once per freighter
   - Reachable stairs with nothing connected at the bottom or top
   - Problems list in the sidebar (click → floor) and red markers on the grid
-  - Later, with wall pieces: Exterior Catwalk/Platform/Stairs need a Bulkhead Door to be reachable
+  - Walls and windows block the way; Exterior Catwalk/Platform/Stairs need a Bulkhead Door to be reachable (`connects` in `js/walls.js`)
   - Exterior pieces already join each other on the map (catwalk paths, merged platform decks; `exteriorOpensTowards`)
   - Later: auto-snapping
 - [ ] **Wall pieces: Internal Freighter Wall, Bulkhead Door, Reinforced Window**
   - [x] Edge layer in data and saves (`floor.walls`, `js/walls.js`), palette, place/drag/erase along edges, drawing, undo, copy/paste/clear floor, eyedropper
   - [x] Placement rules from the game: next to the interior (rooms, corridors, the ramp), stairs only at their entrance and exit, never between two exterior pieces; walls go when their room does
-  - [ ] Validation: walls and windows block walking, a Bulkhead Door is the only way between the interior and the exterior (so exterior pieces get checked again)
+  - [x] Validation: walls and windows block walking, a Bulkhead Door is the only way between the interior and the exterior (so exterior pieces get checked again)
   - [ ] Extras: Ctrl+drag outlines a box with walls, walls in the onion skin
 - [ ] **Ladder Module**
   - Not a room: an add-on to a corridor that links it to the corridor on the floor above

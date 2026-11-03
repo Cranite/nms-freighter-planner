@@ -1,6 +1,7 @@
 import { GRID_SIZE, RAMP } from './data.js';
 import { MODULE_BY_ID } from './modules.js';
-import { STEP, spansTwoFloors, coveringAt, opensTowards } from './footprint.js';
+import { STEP, spansTwoFloors, coveringAt } from './footprint.js';
+import { connects } from './walls.js';
 
 /**
  * Layout validation. Problems are warnings: the planner never blocks
@@ -8,8 +9,8 @@ import { STEP, spansTwoFloors, coveringAt, opensTowards } from './footprint.js';
  *
  * Checks:
  * - Modules that can't be reached from the entrance ramp (walking through
- *   connected tiles and up/down stairs). Exterior pieces are skipped:
- *   they need a Bulkhead Door, which isn't supported yet.
+ *   connected tiles and up/down stairs; walls and windows block the way,
+ *   and exterior pieces need a Bulkhead Door to the interior)
  * - Storage Room numbers used more than once (each 0–9 once per freighter)
  * - Reachable stairs that lead nowhere at the bottom or the top
  *
@@ -44,14 +45,15 @@ export function validateLayout(freighter) {
   // Unreachable modules, one problem per floor
   const unreachableByFloor = new Map();
   for (const mod of modules) {
-    if (mod.modDef.exterior || reached.has(cellKey(mod.floor, mod.x, mod.y))) continue;
+    if (reached.has(cellKey(mod.floor, mod.x, mod.y))) continue;
 
     if (!unreachableByFloor.has(mod.floor)) unreachableByFloor.set(mod.floor, []);
     unreachableByFloor.get(mod.floor).push(mod);
   }
   for (const [floor, mods] of unreachableByFloor) {
+    const doorHint = mods.some(m => m.modDef.exterior) ? ' (exterior pieces need a Bulkhead Door)' : '';
     problems.push({
-      message: `Floor ${floor}: ${mods.length} ${mods.length === 1 ? 'module' : 'modules'} can't be reached from the ramp`,
+      message: `Floor ${floor}: ${mods.length} ${mods.length === 1 ? 'module' : 'modules'} can't be reached from the ramp${doorHint}`,
       locations: mods.flatMap(m => m.locations),
     });
   }
@@ -71,22 +73,22 @@ export function validateLayout(freighter) {
     });
   }
 
-  // Reachable stairs without a connection at an end
+  // Reachable stairs without a connection at an end (nothing there, or a wall in the way)
   for (const mod of modules) {
-    if (!spansTwoFloors(mod.modDef) || mod.modDef.exterior || !reached.has(cellKey(mod.floor, mod.x, mod.y))) continue;
+    if (!spansTwoFloors(mod.modDef) || !reached.has(cellKey(mod.floor, mod.x, mod.y))) continue;
 
     const [sx, sy] = STEP[mod.rotation];
     const name = `${mod.modDef.label} (floor ${mod.floor})`;
 
-    // Bottom: the tile behind the low end must open towards the stairs
+    // Bottom: from the low end, back out of the stairs
     const [floor, below] = floorPair(mod.floor);
-    if (!opensTowardsFrom(floor, below, mod.x - sx, mod.y - sy, sx, sy)) {
+    if (!connects(floor, below, mod.x, mod.y, -sx, -sy)) {
       problems.push({ message: `${name}: nothing connects at the bottom`, locations: mod.locations });
     }
 
-    // Top: the tile past the high end, on the floor above
+    // Top: from the high end on the floor above, out past it
     const [above, aboveBelow] = floorPair(mod.floor + 1);
-    if (!opensTowardsFrom(above, aboveBelow, mod.x + 2 * sx, mod.y + 2 * sy, -sx, -sy)) {
+    if (!above || !connects(above, aboveBelow, mod.x + sx, mod.y + sy, sx, sy)) {
       problems.push({
         message: `${name}: nothing connects at the top (floor ${mod.floor + 1})`,
         locations: mod.locations.map(l => ({ ...l, floor: mod.floor + 1 })),
@@ -100,15 +102,10 @@ export function validateLayout(freighter) {
 const cellKey = (floor, x, y) => `${floor}:${x}:${y}`;
 const inGrid = (x, y) => x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE;
 
-// Tile (x, y) exists and opens towards (dx, dy)
-function opensTowardsFrom(floor, floorBelow, x, y, dx, dy) {
-  return !!floor && inGrid(x, y) && opensTowards(floor, floorBelow, x, y, dx, dy);
-}
-
 /**
  * All tiles you can walk to from the ramp (breadth-first search).
- * Moves: to a neighbouring tile when both open towards each other, and
- * between the low end of stairs and their exit on the floor above.
+ * Moves: to a neighbouring tile they connect to (see connects in walls.js),
+ * and between the low end of stairs and their high end on the floor above.
  */
 function findReachable(floors, floorPair) {
   const reached = new Set([cellKey(RAMP.floor, RAMP.x, RAMP.y)]);
@@ -126,14 +123,12 @@ function findReachable(floors, floorPair) {
     const [floor, below] = floorPair(f);
 
     for (const [dx, dy] of Object.values(STEP)) {
-      if (opensTowards(floor, below, x, y, dx, dy) && opensTowardsFrom(floor, below, x + dx, y + dy, -dx, -dy)) {
-        visit(f, x + dx, y + dy);
-      }
+      if (connects(floor, below, x, y, dx, dy)) visit(f, x + dx, y + dy);
     }
 
-    // Climb or descend stairs: low end ↔ high end on the floor above
+    // Climb or descend stairs (also exterior stairs): low end ↔ high end on the floor above
     const cover = coveringAt(floor, below, x, y);
-    if (cover && spansTwoFloors(cover.modDef) && !cover.modDef.exterior) {
+    if (cover && spansTwoFloors(cover.modDef)) {
       const [sx, sy] = STEP[cover.tile.rotation];
       if (cover.part === 'base' && cover.end === 'low') visit(f + 1, x + sx, y + sy);
       if (cover.part === 'top' && cover.end === 'high') visit(f - 1, x - sx, y - sy);

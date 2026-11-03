@@ -1,5 +1,6 @@
 import { GRID_SIZE } from './data.js';
-import { coveringAt, opensTowards, spansTwoFloors, stairsOpenTowards } from './footprint.js';
+import { MODULE_BY_ID } from './modules.js';
+import { coveringAt, opensTowards, exteriorOpensTowards, spansTwoFloors, stairsOpenTowards } from './footprint.js';
 
 /**
  * Wall pieces: Internal Freighter Wall, Reinforced Window, Bulkhead Door.
@@ -65,6 +66,30 @@ export function canHaveWall(floor, floorBelow, edge) {
     const cover = coveringAt(floor, floorBelow, t.x, t.y);
     return spansTwoFloors(cover?.modDef) && !stairsOpenTowards(cover, t.dx, t.dy);
   });
+}
+
+/**
+ * Whether you can walk from tile (x, y) to its neighbour towards (dx, dy):
+ * - A wall or window on the edge between them blocks the way
+ * - Without one, interior connects to interior (opensTowards) and exterior
+ *   to exterior (exteriorOpensTowards), but not to each other: rooms have
+ *   their own wall towards the outside
+ * - A Bulkhead Door also connects the interior to the exterior
+ */
+export function connects(floor, floorBelow, x, y, dx, dy) {
+  const nx = x + dx, ny = y + dy;
+  if (!inGrid(x, y) || !inGrid(nx, ny)) return false;
+
+  const piece = MODULE_BY_ID[getWall(floor, tileEdge(x, y, dx, dy))];
+  if (piece && !piece.door) return false;
+
+  const fromInside = opensTowards(floor, floorBelow, x, y, dx, dy);
+  const toInside = opensTowards(floor, floorBelow, nx, ny, -dx, -dy);
+  const fromOutside = exteriorOpensTowards(floor, floorBelow, x, y, dx, dy);
+  const toOutside = exteriorOpensTowards(floor, floorBelow, nx, ny, -dx, -dy);
+
+  if ((fromInside && toInside) || (fromOutside && toOutside)) return true;
+  return !!piece && (fromInside || fromOutside) && (toInside || toOutside);
 }
 
 // Every edge around the tiles of an area { x0, y0, x1, y1 } (inclusive, clamped to the grid)

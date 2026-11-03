@@ -63,7 +63,7 @@ export function coveringAt(floor, floorBelow, x, y) {
  * - Interior modules (corridors, rooms): all sides; neighbours connect
  *   through doorways or merge into bigger rooms
  * - Stairs: only behind their low end, and past their high end on the floor above
- * - Exterior pieces: none, they need a Bulkhead Door (not supported yet);
+ * - Exterior pieces: none, they need a Bulkhead Door (see connects in walls.js);
  *   among themselves they connect, see exteriorOpensTowards
  * Two neighbouring tiles connect when both open towards each other.
  */
