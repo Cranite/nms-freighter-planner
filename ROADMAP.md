@@ -28,6 +28,7 @@ Each step makes the next one cheaper, so the order matters.
   - Reachable stairs with nothing connected at the bottom or top
   - Problems list in the sidebar (click → floor) and red markers on the grid
   - Later, with wall pieces: Exterior Catwalk/Platform/Stairs need a Bulkhead Door to be reachable
+  - Exterior pieces already join each other on the map (catwalk paths, merged platform decks; `exteriorOpensTowards`)
   - Later: auto-snapping
 - [ ] **Wall pieces: Internal Freighter Wall, Bulkhead Door, Reinforced Window**
   - They sit on the edges between tiles, so they need an edge layer (4 sides per tile) in data, rendering and saves

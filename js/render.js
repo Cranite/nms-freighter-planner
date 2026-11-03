@@ -1,5 +1,5 @@
 import { TILE_SIZE, GRID_SIZE, RAMP, isLockedTile } from './data.js';
-import { STEP, spansTwoFloors, coveringAt, opensTowards } from './footprint.js';
+import { STEP, spansTwoFloors, coveringAt, opensTowards, exteriorOpensTowards } from './footprint.js';
 import { EMPTY_ID } from './modules.js';
 import { isTypingTarget } from './ui.js';
 
@@ -289,17 +289,18 @@ function corridorShape(mask) {
 }
 
 /**
- * Sides of tile (x, y) whose neighbour opens towards it (see opensTowards:
- * ramp, interior modules, and stairs only at their ends)
+ * Sides of tile (x, y) whose neighbour opens towards it.
+ * `opens` is the rule: opensTowards for corridors (ramp, interior modules,
+ * stairs only at their ends), exteriorOpensTowards for catwalks and platforms.
  */
-function corridorMask(floor, floorBelow, x, y) {
+function neighbourMask(floor, floorBelow, x, y, opens = opensTowards) {
   let mask = 0;
 
   for (const [dx, dy, dir] of NEIGHBOURS) {
     const nx = x + dx, ny = y + dy;
     if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE) continue;
 
-    if (opensTowards(floor, floorBelow, nx, ny, -dx, -dy)) mask |= dir;
+    if (opens(floor, floorBelow, nx, ny, -dx, -dy)) mask |= dir;
   }
   return mask;
 }
@@ -308,13 +309,20 @@ function corridorMask(floor, floorBelow, x, y) {
  * How a module looks at tile (x, y):
  * - key: objects with the same key only differ in rotation
  * - shape: corridor texture (corridors only)
+ * - mask: sides joined to other exterior pieces (catwalks and platforms only)
  * - top: stairs arriving from the floor below
  * - rotation: degrees
  */
 function visualFor(modDef, floor, floorBelow, x, y, rotation, top = false) {
   if (modDef.kind === 'corridor') {
-    const { shape, rotation: shapeRotation } = corridorShape(corridorMask(floor, floorBelow, x, y));
+    const { shape, rotation: shapeRotation } = corridorShape(neighbourMask(floor, floorBelow, x, y));
     return { key: `${modDef.id}:${shape}`, shape, rotation: shapeRotation };
+  }
+
+  // Catwalks and platforms join the exterior pieces around them
+  if (modDef.kind === 'exterior') {
+    const mask = neighbourMask(floor, floorBelow, x, y, exteriorOpensTowards);
+    return { key: `${modDef.id}:${mask}`, mask, rotation: 0 };
   }
 
   // Stairs: rotation moves the 2-tile object, so it's part of the key
@@ -331,6 +339,7 @@ function visualFor(modDef, floor, floorBelow, x, y, rotation, top = false) {
  */
 function createModuleObject(modDef, visual, x, y) {
   if (spansTwoFloors(modDef)) return createStairsObject(modDef, visual, x, y);
+  if (modDef.kind === 'exterior') return createExteriorObject(modDef, visual, x, y);
 
   const obj = new PIXI.Container();
   const texture = visual.shape && textureCache[visual.shape];
@@ -348,9 +357,6 @@ function createModuleObject(modDef, visual, x, y) {
     // Colored square, drawn around the center so rotation works the same
     const half = TILE_SIZE / 2;
     body = new PIXI.Graphics();
-
-    // Exterior pieces get an outline (open deck outside the hull)
-    if (modDef.exterior) body.lineStyle(1, 0xffffff, 0.5);
     body.beginFill(modDef.color);
     body.drawRoundedRect(-half + 2, -half + 2, TILE_SIZE - 4, TILE_SIZE - 4, 4);
     body.endFill();
@@ -366,6 +372,63 @@ function createModuleObject(modDef, visual, x, y) {
   obj.y = y * TILE_SIZE + TILE_SIZE / 2;
 
   return obj;
+}
+
+// Railing along the open sides of exterior pieces
+const RAILING_COLOR = 0xdfe3e4;
+const RAILING_WIDTH = 2;
+
+/**
+ * Exterior Catwalk / Platform: open deck outside the hull that joins the
+ * exterior pieces around it (`visual.mask`), with a railing on the other sides.
+ * - Platform: the whole tile, so neighbouring platforms merge into one deck
+ * - Catwalk: a narrow path from the center to each joined side
+ */
+function createExteriorObject(modDef, visual, x, y) {
+  const obj = new PIXI.Container();
+  const body = new PIXI.Graphics();
+  const half = TILE_SIZE / 2;
+
+  if (modDef.id === 'exterior_platform') {
+    body.beginFill(modDef.color);
+    body.drawRect(-half, -half, TILE_SIZE, TILE_SIZE);
+    body.endFill();
+
+    // Railing just inside each side without an exterior neighbour
+    const edge = half - RAILING_WIDTH / 2;
+    body.lineStyle(RAILING_WIDTH, RAILING_COLOR);
+    for (const [dx, dy, dir] of NEIGHBOURS) {
+      if (visual.mask & dir) continue;
+      // The side's two corners: along the side is (-dy, dx)
+      body.moveTo(dx * edge - dy * half, dy * edge + dx * half);
+      body.lineTo(dx * edge + dy * half, dy * edge - dx * half);
+    }
+  } else {
+    // Railing color first, slightly wider, then the deck on top:
+    // what stays visible of the railing color is the railing
+    drawPath(body, visual.mask, TILE_SIZE * 0.4 + RAILING_WIDTH * 2, RAILING_COLOR);
+    drawPath(body, visual.mask, TILE_SIZE * 0.4, modDef.color);
+  }
+
+  obj.addChild(body);
+  obj.body = body;
+  obj.x = x * TILE_SIZE + half;
+  obj.y = y * TILE_SIZE + half;
+  return obj;
+}
+
+// Catwalk path of `width`: a center square plus an arm to each side in `mask`
+function drawPath(g, mask, width, color) {
+  const half = TILE_SIZE / 2;
+  const w = width / 2;
+
+  g.beginFill(color);
+  g.drawRect(-w, -w, width, width);
+  if (mask & N) g.drawRect(-w, -half, width, half);
+  if (mask & S) g.drawRect(-w, 0, width, half);
+  if (mask & W) g.drawRect(-half, -w, half, width);
+  if (mask & E) g.drawRect(0, -w, half, width);
+  g.endFill();
 }
 
 /**

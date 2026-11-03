@@ -10,6 +10,7 @@ A browser-based planning tool for designing freighter layouts using a grid syste
 - Stairs span 2 tiles and 2 floors, like in the game; occupied tiles can't be built on
 - Validation: unreachable modules, duplicate storage numbers and dead-end stairs are listed and marked on the grid
 - Corridors shape themselves (straight, corner, T, cross) based on their neighbours
+- Exterior catwalks form connected paths and platforms merge into decks, with a railing on their open sides
 - Grouped, searchable module palette
 - Drag & place modules; right-click (or Shift+click) to remove; locked entrance ramp tile
 - Box fill: Ctrl+drag fills a box with the selected module, Ctrl+right-drag erases it (one undo step, Esc cancels)

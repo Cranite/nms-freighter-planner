@@ -63,7 +63,8 @@ export function coveringAt(floor, floorBelow, x, y) {
  * - Interior modules (corridors, rooms): all sides; neighbours connect
  *   through doorways or merge into bigger rooms
  * - Stairs: only behind their low end, and past their high end on the floor above
- * - Exterior pieces: none, they need a Bulkhead Door (not supported yet)
+ * - Exterior pieces: none, they need a Bulkhead Door (not supported yet);
+ *   among themselves they connect, see exteriorOpensTowards
  * Two neighbouring tiles connect when both open towards each other.
  */
 export function opensTowards(floor, floorBelow, x, y, dx, dy) {
@@ -73,6 +74,24 @@ export function opensTowards(floor, floorBelow, x, y, dx, dy) {
   if (!cover || cover.modDef.exterior || cover.modDef.kind === 'eraser') return false;
   if (!spansTwoFloors(cover.modDef)) return true;
 
+  return stairsOpenTowards(cover, dx, dy);
+}
+
+/**
+ * The same for the outside of the hull: whether an exterior piece on
+ * tile (x, y) joins up with the exterior piece towards (dx, dy).
+ * Catwalks and platforms open on all sides, exterior stairs only at their ends.
+ * Interior modules and the ramp never count (that needs a Bulkhead Door).
+ */
+export function exteriorOpensTowards(floor, floorBelow, x, y, dx, dy) {
+  const cover = coveringAt(floor, floorBelow, x, y);
+  if (!cover?.modDef.exterior) return false;
+
+  return !spansTwoFloors(cover.modDef) || stairsOpenTowards(cover, dx, dy);
+}
+
+// Stairs: open behind their low end, and past their high end on the floor above
+function stairsOpenTowards(cover, dx, dy) {
   const [sx, sy] = STEP[cover.tile.rotation];
   if (cover.part === 'base' && cover.end === 'low') return dx === -sx && dy === -sy;
   if (cover.part === 'top' && cover.end === 'high') return dx === sx && dy === sy;
