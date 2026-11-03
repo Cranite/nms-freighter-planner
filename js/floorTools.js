@@ -1,6 +1,7 @@
-import { GRID_SIZE } from './data.js';
+import { GRID_SIZE, createEmptyWalls } from './data.js';
 import { MODULE_BY_ID } from './modules.js';
 import { canPlace } from './footprint.js';
+import { canHaveWall, pruneWalls } from './walls.js';
 
 /**
  * Whole-floor tools: copy, paste and clear.
@@ -11,28 +12,38 @@ import { canPlace } from './footprint.js';
  * Stairs belong to the floor they're stored on: copying or clearing a
  * floor includes its own stairs (and so their top part on the floor
  * above), but not stairs arriving from the floor below.
+ * Walls on the floor above that stood at the exit of removed stairs go too.
  */
 
 /**
- * Copies the modules stored on floor `floorNum`:
- * { floor, tiles: [[{ type, rotation }]] }
+ * Copies the modules and walls stored on floor `floorNum`:
+ * { floor, tiles: [[{ type, rotation }]], walls }
  */
 export function copyFloor(freighter, floorNum) {
-  const tiles = freighter.floors[floorNum - 1].tiles.map(row => row.map(tile => ({ ...tile })));
-  return { floor: floorNum, tiles };
+  const { tiles, walls } = structuredClone(freighter.floors[floorNum - 1]);
+  return { floor: floorNum, tiles, walls };
 }
 
 /**
  * Empties floor `floorNum`. Returns the new freighter.
  */
 export function clearFloor(freighter, floorNum) {
+  const result = withEmptyFloor(freighter, floorNum);
+  pruneWalls(result, floorNum + 1);
+  return result;
+}
+
+// A copy of the freighter with floor `floorNum` empty (no modules, no walls)
+function withEmptyFloor(freighter, floorNum) {
   const result = structuredClone(freighter);
-  for (const row of result.floors[floorNum - 1].tiles) {
+  const floor = result.floors[floorNum - 1];
+  for (const row of floor.tiles) {
     for (const tile of row) {
       tile.type = null;
       tile.rotation = 0;
     }
   }
+  floor.walls = createEmptyWalls();
   return result;
 }
 
@@ -40,11 +51,13 @@ export function clearFloor(freighter, floorNum) {
  * Replaces floor `floorNum` with a copied floor.
  * Modules that don't fit here are skipped: the ramp, stairs arriving
  * from the floor below, something in the way on the floor above, or
- * stairs on the top floor. Returns { freighter, skipped }.
+ * stairs on the top floor. Walls are pasted where they still fit with the
+ * modules here (not counted in skipped). Returns { freighter, skipped }.
  */
 export function pasteFloor(freighter, floorNum, copied) {
-  const result = clearFloor(freighter, floorNum);
-  const tiles = result.floors[floorNum - 1].tiles;
+  const result = withEmptyFloor(freighter, floorNum);
+  const floor = result.floors[floorNum - 1];
+  const tiles = floor.tiles;
   let skipped = 0;
 
   for (let y = 0; y < GRID_SIZE; y++) {
@@ -61,6 +74,15 @@ export function pasteFloor(freighter, floorNum, copied) {
       }
     }
   }
+
+  // Walls once all modules are in, as they depend on the modules on both sides
+  const floorBelow = result.floors[floorNum - 2] ?? null;
+  for (const [side, rows] of Object.entries(copied.walls)) {
+    rows.forEach((row, y) => row.forEach((type, x) => {
+      if (type && canHaveWall(floor, floorBelow, { x, y, side })) floor.walls[side][y][x] = type;
+    }));
+  }
+  pruneWalls(result, floorNum + 1);
 
   return { freighter: result, skipped };
 }

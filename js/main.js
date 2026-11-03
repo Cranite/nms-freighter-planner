@@ -9,9 +9,11 @@ import { createRenderer } from './render.js';
 import { createHistory } from './history.js';
 import { validateLayout } from './validation.js';
 import { copyFloor, pasteFloor, clearFloor } from './floorTools.js';
+import { canHaveWall, getWall, setWall, pruneWallsAround, pruneAllWalls } from './walls.js';
 
 // Application state; continues where the last session left off (auto-save)
 let freighter = loadAutosave() ?? createEmptyFreighter();
+pruneAllWalls(freighter);
 let currentFloor = 1;
 
 // Currently selected module + rotation
@@ -135,6 +137,8 @@ ui.setUndoRedoState(history.canUndo(), history.canRedo());
  *              null when the whole layout changed (load/import/new)
  */
 function replaceFreighter({ freighter: loaded }, floor = null) {
+  // A loaded file can have walls where none can go
+  pruneAllWalls(loaded);
   history.recordLayout(freighter, loaded, floor);
   freighter = loaded;
   drawCurrentFloor();
@@ -235,15 +239,21 @@ function applyHistoryEntry(entry, side) {
   const floor = freighter.floors[entry.floor - 1];
 
   for (const change of changes) {
-    Object.assign(floor.tiles[change.y][change.x], change[side]);
+    if (change.edge) {
+      setWall(freighter.floors[change.floor - 1], change.edge, change[side]);
+    } else {
+      Object.assign(floor.tiles[change.y][change.x], change[side]);
+    }
   }
 
   // Stairs changed on the floor below also show on this floor (their top part)
-  const touchesStairs = entry.changes.some(c => spansTwoFloors(MODULE_BY_ID[c.before.type]) || spansTwoFloors(MODULE_BY_ID[c.after.type]));
+  const tileChanges = entry.changes.filter(c => !c.edge);
+  const touchesStairs = tileChanges.some(c => spansTwoFloors(MODULE_BY_ID[c.before.type]) || spansTwoFloors(MODULE_BY_ID[c.after.type]));
   const visibleHere = entry.floor === currentFloor || (entry.floor === currentFloor - 1 && touchesStairs);
 
   if (visibleHere) {
-    changes.forEach(({ x, y }) => renderer.drawTile(x, y));
+    tileChanges.forEach(({ x, y }) => renderer.drawTile(x, y));
+    renderer.drawWalls();
   } else {
     // Switch to the floor the change was made on, so it's visible
     currentFloor = entry.floor;
@@ -284,7 +294,8 @@ function applyDraw(x, y, mode) {
     return;
   }
 
-  if (!selectedModule) return;
+  // Wall pieces go on edges (applyWall)
+  if (!selectedModule || selectedModule.kind === 'wall') return;
 
   // Only some modules have a direction (e.g. stairs); corridors shape themselves
   const rotation = selectedModule.rotatable ? selectedRotation : 0;
@@ -320,6 +331,48 @@ function fillBox({ x0, y0, x1, y1 }, mode) {
 }
 
 /**
+ * Places the selected wall piece on an edge, or removes the one there.
+ * @param edge { x, y, side }, see walls.js
+ * @param mode 'place' | 'remove'
+ */
+function applyWall(edge, mode) {
+  if (mode === 'remove') return setWallAt(edge, null);
+
+  if (selectedModule?.kind !== 'wall' || !canWallAt(edge)) return;
+  setWallAt(edge, selectedModule.id);
+}
+
+// Can a wall piece go on this edge of the current floor?
+function canWallAt(edge) {
+  return canHaveWall(freighter.floors[currentFloor - 1], freighter.floors[currentFloor - 2] ?? null, edge);
+}
+
+// Stores a wall piece (or null) on an edge of the current floor, records it for undo and redraws
+function setWallAt(edge, type) {
+  const floor = freighter.floors[currentFloor - 1];
+  const before = getWall(floor, edge);
+  if (before === type) return;
+
+  setWall(floor, edge, type);
+  history.recordWall(currentFloor, edge, before, type);
+  renderer.drawWalls();
+  onLayoutChanged();
+}
+
+/**
+ * Eyedropper on an edge: selects the wall piece there.
+ * Returns false if the edge has none.
+ */
+function pickWallAt(edge) {
+  const type = getWall(freighter.floors[currentFloor - 1], edge);
+  if (!type) return false;
+
+  selectedModule = MODULE_BY_ID[type];
+  ui.selectModule(type);
+  return true;
+}
+
+/**
  * Eyedropper: selects the module covering a tile, with its rotation.
  * Empty tiles and the ramp are ignored.
  */
@@ -347,10 +400,15 @@ function setTile(floorNum, x, y, type, rotation) {
   // Part of the current stroke's undo step
   history.recordTile(floorNum, x, y, before, { type, rotation });
 
+  // Walls that no longer have the interior next to them go too, in the same step
+  for (const removed of pruneWallsAround(freighter, floorNum, x, y)) {
+    history.recordWall(removed.floor, removed.edge, removed.before, null);
+  }
+
   // A box fill redraws once when it's done
   if (fillingBox) return;
 
-  // Re-render the area around the tile (stairs and corridor shapes reach beyond it)
+  // Re-render the area around the tile (stairs and corridor shapes reach beyond it) and the walls
   renderer.drawTile(x, y);
   onLayoutChanged();
 }
@@ -360,6 +418,9 @@ renderer.setupInteraction({
   applyDraw,
   fillBox,
   pickAt,
+  applyWall,
+  canWallAt,
+  pickWallAt,
   getModule: () => selectedModule,
   getRotation: () => selectedRotation,
   setRotation: (val) => selectedRotation = val,

@@ -53,3 +53,41 @@ test('paste skips modules where stairs from the floor below arrive', () => {
   assert.equal(skipped, 1);
   assert.equal(typeAt(result, 2, 9, 9), 'scanner_room');
 });
+
+const wallAt = (freighter, floorNum, side, x, y) => freighter.floors[floorNum - 1].walls[side][y][x];
+
+test('copy and paste include the walls', () => {
+  const freighter = layout({ 2: [[5, 5, 'scanner_room']] });
+  freighter.floors[1].walls.N[5][5] = 'reinforced_window';
+  const { freighter: result } = pasteFloor(freighter, 3, copyFloor(freighter, 2));
+
+  assert.equal(wallAt(result, 3, 'N', 5, 5), 'reinforced_window');
+});
+
+test('paste drops walls that don\'t fit with the modules here', () => {
+  // The copied wall is at the top of stairs from floor 1; on floor 3 there are none
+  const freighter = layout({ 1: [[5, 5, 'freighter_stairs', 0]] });
+  freighter.floors[1].walls.N[4][5] = 'internal_wall';
+  const { freighter: result } = pasteFloor(freighter, 3, copyFloor(freighter, 2));
+
+  assert.equal(wallAt(result, 3, 'N', 5, 4), null);
+});
+
+test('clear removes the floor\'s walls, and the walls at the exit of its stairs', () => {
+  const freighter = layout({ 1: [[5, 5, 'freighter_stairs', 0]] });
+  freighter.floors[0].walls.N[6][5] = 'internal_wall'; // entrance
+  freighter.floors[1].walls.N[4][5] = 'internal_wall'; // exit, on floor 2
+  const cleared = clearFloor(freighter, 1);
+
+  assert.equal(wallAt(cleared, 1, 'N', 5, 6), null);
+  assert.equal(wallAt(cleared, 2, 'N', 5, 4), null);
+  assert.equal(wallAt(freighter, 2, 'N', 5, 4), 'internal_wall'); // the original is left alone
+});
+
+test('pasting a floor onto itself keeps the walls at its stairs exits', () => {
+  const freighter = layout({ 1: [[5, 5, 'freighter_stairs', 0]] });
+  freighter.floors[1].walls.N[4][5] = 'internal_wall';
+  const { freighter: result } = pasteFloor(freighter, 1, copyFloor(freighter, 1));
+
+  assert.equal(wallAt(result, 2, 'N', 5, 4), 'internal_wall');
+});

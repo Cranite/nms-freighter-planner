@@ -1,6 +1,7 @@
 import { GRID_SIZE, RAMP, isLockedTile } from './data.js';
 import { STEP, spansTwoFloors, coveringAt, opensTowards, exteriorOpensTowards } from './footprint.js';
-import { EMPTY_ID } from './modules.js';
+import { EMPTY_ID, MODULE_BY_ID } from './modules.js';
+import { tileEdge } from './walls.js';
 import { isTypingTarget } from './ui.js';
 
 /**
@@ -87,10 +88,12 @@ export async function createRenderer() {
  *   ├─ belowContainer  (onion skin: the floor below, faint)
  *   ├─ rampMarker      (locked entrance ramp tile, floor 1 only)
  *   ├─ moduleContainer (placed modules, one display object per module start tile)
+ *   ├─ wallLayer       (wall pieces on the edges between tiles)
  *   ├─ aboveOutlines   (onion skin: outlines of the floor above)
  *   ├─ problemMarkers  (validation problems on this floor)
  *   ├─ boxPreview      (box being drawn with Ctrl + drag)
- *   └─ ghost.container (preview module)
+ *   ├─ ghost.container (preview module)
+ *   └─ edgeGhost.container (preview wall piece)
  */
 function initRenderer(app) {
   const grid = drawGrid();
@@ -98,6 +101,7 @@ function initRenderer(app) {
   const rampMarker = drawRampMarker();
   const belowContainer = new PIXI.Container();
   const moduleContainer = new PIXI.Container();
+  const wallLayer = new PIXI.Graphics();
   const aboveOutlines = new PIXI.Graphics();
   const problemMarkers = new PIXI.Graphics();
   const stageContainer = new PIXI.Container();
@@ -107,16 +111,19 @@ function initRenderer(app) {
   belowContainer.alpha = 0.28;
   const ghost = createGhost(modules.getFloors);
   const boxPreview = createBoxPreview();
+  const edgeGhost = createEdgeGhost();
 
   stageContainer.addChild(grid);
   stageContainer.addChild(bridgeLabel);
   stageContainer.addChild(belowContainer);
   stageContainer.addChild(rampMarker);
   stageContainer.addChild(moduleContainer);
+  stageContainer.addChild(wallLayer);
   stageContainer.addChild(aboveOutlines);
   stageContainer.addChild(problemMarkers);
   stageContainer.addChild(boxPreview.container);
   stageContainer.addChild(ghost.container);
+  stageContainer.addChild(edgeGhost.container);
   app.stage.addChild(stageContainer);
 
   // Center and enable camera controls
@@ -156,14 +163,22 @@ function initRenderer(app) {
       floors = allFloors;
       floorNum = n;
       modules.drawFloor(floors[n - 1], floors[n - 2] ?? null);
+      drawWallLayer(wallLayer, floors[n - 1]);
       drawOnionSkin();
     },
 
-    // Redraw around a changed tile; the onion skin can change too (erasing stairs from their top)
+    // Redraw around a changed tile; the onion skin can change too (erasing stairs from their top),
+    // and so can the walls (removed along with a module)
     drawTile(x, y) {
       modules.drawTile(x, y);
+      drawWallLayer(wallLayer, floors[floorNum - 1]);
       if (belowContainer.visible) below.drawTile(x, y);
       drawAboveOutlines(aboveOutlines, onionSkin.above ? floors[floorNum] : null, floors[floorNum - 1]);
+    },
+
+    // Redraw the walls of the current floor (cheap: one Graphics)
+    drawWalls() {
+      drawWallLayer(wallLayer, floors[floorNum - 1]);
     },
 
     // { below, above }: which neighbouring floors to show
@@ -173,7 +188,7 @@ function initRenderer(app) {
     },
 
     showProblemTiles: (tiles) => drawProblemMarkers(problemMarkers, tiles),
-    setupInteraction: (handlers) => setupInteraction(grid, ghost, boxPreview, handlers),
+    setupInteraction: (handlers) => setupInteraction(grid, ghost, edgeGhost, boxPreview, handlers),
   };
 }
 
@@ -624,6 +639,83 @@ function createGhost(getFloors) {
   return { container, show, hide };
 }
 
+// Thickness of a wall piece, centered on its edge
+const WALL_WIDTH = Math.max(4, Math.round(TILE_SIZE * 0.14));
+
+/**
+ * All wall pieces of a floor, redrawn as a whole (a few hundred at most)
+ */
+function drawWallLayer(g, floor) {
+  g.clear();
+  for (const [side, rows] of Object.entries(floor.walls)) {
+    rows.forEach((row, y) => row.forEach((type, x) => {
+      if (type) drawWallPiece(g, MODULE_BY_ID[type], { x, y, side });
+    }));
+  }
+}
+
+/**
+ * One wall piece along an edge, in its module color with a dark outline:
+ * - wall: solid
+ * - window: with a light line of glass along the middle
+ * - door: open in the middle, with a thin door leaf across the opening
+ * Pieces overlap half their width past the corners, so walls meeting there join up.
+ */
+function drawWallPiece(g, modDef, { x, y, side }, color = modDef.color) {
+  const horizontal = side === 'N';
+  const w = WALL_WIDTH;
+
+  // Part of the edge from `from` to `to` (px along it), `width` thick
+  const segment = (from, to, width = w) => horizontal
+    ? g.drawRect(x * TILE_SIZE + from, y * TILE_SIZE - width / 2, to - from, width)
+    : g.drawRect(x * TILE_SIZE - width / 2, y * TILE_SIZE + from, width, to - from);
+
+  const start = -w / 2, end = TILE_SIZE + w / 2;
+
+  g.lineStyle(1, 0x000000, 0.6);
+  g.beginFill(color);
+  if (modDef.door) {
+    segment(start, TILE_SIZE * 0.3);
+    segment(TILE_SIZE * 0.7, end);
+    g.endFill();
+    g.lineStyle(0);
+    g.beginFill(color);
+    segment(TILE_SIZE * 0.3, TILE_SIZE * 0.7, Math.max(1, w / 3));
+  } else {
+    segment(start, end);
+    if (modDef.id === 'reinforced_window') {
+      g.endFill();
+      g.lineStyle(0);
+      g.beginFill(0xffffff, 0.7);
+      segment(TILE_SIZE * 0.1, TILE_SIZE * 0.9, Math.max(1, w / 4));
+    }
+  }
+  g.endFill();
+  g.lineStyle(0);
+}
+
+/**
+ * Preview of the selected wall piece on the edge under the pointer;
+ * red where it can't go
+ */
+function createEdgeGhost() {
+  const container = new PIXI.Graphics();
+  container.visible = false;
+  container.alpha = 0.7;
+
+  function show(edge, modDef, valid = true) {
+    container.clear();
+    drawWallPiece(container, modDef, edge, valid ? modDef.color : 0xff4d4d);
+    container.visible = true;
+  }
+
+  function hide() {
+    container.visible = false;
+  }
+
+  return { container, show, hide };
+}
+
 /**
  * Box drawn with Ctrl + drag: faint fill and outline, red marks on tiles
  * the module can't go, and the box size in the middle
@@ -803,11 +895,17 @@ function centerStage(stageContainer, app) {
  * - Ctrl + drag = fill a box when released (with right button / Shift: erase it);
  *   Esc cancels. Stairs can't fill a box, so for them it's a normal drag.
  * - R = rotate module
+ * - Wall pieces go on the edge nearest to the pointer instead of a tile:
+ *   click places, drag places a straight run along that grid line,
+ *   right-click / Shift removes. The eyedropper picks a wall piece when
+ *   the pointer is right by its edge.
  *
- * One pointer handler on the grid works out the tile under the pointer.
- * `canPlaceAt(x, y)` tells the ghost preview whether placing is allowed there.
+ * One pointer handler on the grid works out the tile (or edge) under the pointer.
+ * `canPlaceAt(x, y)` / `canWallAt(edge)` tell the ghost previews whether placing is allowed there.
  */
-function setupInteraction(grid, ghost, boxPreview, { applyDraw, fillBox, pickAt, getModule, getRotation, setRotation, onStrokeEnd, canPlaceAt }) {
+function setupInteraction(grid, ghost, edgeGhost, boxPreview, {
+  applyDraw, fillBox, pickAt, applyWall, canWallAt, pickWallAt, getModule, getRotation, setRotation, onStrokeEnd, canPlaceAt,
+}) {
   let isDrawing = false;
   let isErasing = false; // stroke started with the right mouse button
 
@@ -828,11 +926,18 @@ function setupInteraction(grid, ghost, boxPreview, { applyDraw, fillBox, pickAt,
     updateGhost();
   };
 
-  // Pointer released: the stroke (click, drag or box) is complete
+  // Wall pieces: the edge under the pointer, and the run being drawn:
+  // { side, line, last, mode }, a straight run of edges along one grid line
+  const isWallTool = () => getModule()?.kind === 'wall';
+  let hoverEdge = null;
+  let wallRun = null;
+
+  // Pointer released: the stroke (click, drag, wall run or box) is complete
   const endStroke = () => {
     if (box) return endBox(true);
     if (!isDrawing) return;
     isDrawing = false;
+    wallRun = null;
     onStrokeEnd();
   };
 
@@ -840,6 +945,13 @@ function setupInteraction(grid, ghost, boxPreview, { applyDraw, fillBox, pickAt,
   let lastDrawn = null; // last tile drawn in the current stroke
 
   const updateGhost = () => {
+    if (isWallTool()) {
+      ghost.hide();
+      if (hoverEdge) edgeGhost.show(hoverEdge, getModule(), canWallAt(hoverEdge));
+      return;
+    }
+
+    edgeGhost.hide();
     if (hoverTile && !box) ghost.show(hoverTile.x, hoverTile.y, getModule(), getRotation(), canPlaceAt(hoverTile.x, hoverTile.y));
   };
 
@@ -882,16 +994,67 @@ function setupInteraction(grid, ghost, boxPreview, { applyDraw, fillBox, pickAt,
     updateGhost();
   };
 
-  // A box keeps its last corner, so releasing outside the grid still fills it
+  // A box keeps its last corner, so releasing outside the grid still fills it.
+  // A wall run continues when the pointer comes back.
   const leaveGrid = () => {
     hoverTile = null;
+    hoverEdge = null;
     lastDrawn = null; // don't connect strokes across the outside of the grid
     ghost.hide();
+    edgeGhost.hide();
   };
 
-  // Eyedropper: select the module on this tile instead of drawing
-  const pick = (tile) => {
-    pickAt(tile.x, tile.y);
+  // The side of the tile under the pointer nearest to it: { edge, distance } (distance in tiles)
+  const nearestEdge = (e) => {
+    const tile = tileAt(e);
+    if (!tile) return null;
+
+    const pos = grid.toLocal(e.global);
+    const ox = pos.x / TILE_SIZE - tile.x;
+    const oy = pos.y / TILE_SIZE - tile.y;
+    const [distance, dx, dy] = [[oy, 0, -1], [1 - oy, 0, 1], [ox, -1, 0], [1 - ox, 1, 0]]
+      .reduce((best, side) => (side[0] < best[0] ? side : best));
+
+    return { edge: tileEdge(tile.x, tile.y, dx, dy), distance };
+  };
+
+  // Edge number `i` along the wall run's grid line
+  const runEdge = (i) => (wallRun.side === 'N' ? { x: i, y: wallRun.line, side: 'N' } : { x: wallRun.line, y: i, side: 'W' });
+
+  const startWallRun = (edge, mode) => {
+    isDrawing = true;
+    wallRun = edge.side === 'N'
+      ? { side: 'N', line: edge.y, last: edge.x, mode }
+      : { side: 'W', line: edge.x, last: edge.y, mode };
+
+    applyWall(edge, mode);
+    hoverEdge = edge;
+    updateGhost();
+  };
+
+  // Follow the pointer along the run's line, also placing the edges a fast move skipped
+  const continueWallRun = (e) => {
+    const pos = grid.toLocal(e.global);
+    const along = (wallRun.side === 'N' ? pos.x : pos.y) / TILE_SIZE;
+    const i = Math.max(0, Math.min(GRID_SIZE - 1, Math.floor(along)));
+    if (i === wallRun.last) return;
+
+    const step = Math.sign(i - wallRun.last);
+    for (let j = wallRun.last + step; j !== i + step; j += step) applyWall(runEdge(j), wallRun.mode);
+    wallRun.last = i;
+
+    hoverEdge = runEdge(i);
+    updateGhost();
+  };
+
+  // Eyedropper: select the wall piece on the edge right by the pointer,
+  // or else the module on this tile, instead of drawing
+  const PICK_EDGE_DISTANCE = 0.25; // tiles
+  const pick = (tile, e) => {
+    const near = nearestEdge(e);
+    if (!(near && near.distance <= PICK_EDGE_DISTANCE && pickWallAt(near.edge))) pickAt(tile.x, tile.y);
+
+    hoverEdge = near?.edge ?? null;
     updateGhost();
   };
 
@@ -911,10 +1074,12 @@ function setupInteraction(grid, ghost, boxPreview, { applyDraw, fillBox, pickAt,
     const tile = tileAt(e);
     if (!tile) return;
 
-    if (e.altKey && e.button === 0) return pick(tile);
+    if (e.altKey && e.button === 0) return pick(tile, e);
+
+    const mode = e.button === 2 || e.shiftKey ? 'remove' : 'place';
+    if (isWallTool()) return startWallRun(nearestEdge(e).edge, mode);
 
     // Ctrl (Cmd on Mac) + drag: a box instead of a stroke
-    const mode = e.button === 2 || e.shiftKey ? 'remove' : 'place';
     if ((e.ctrlKey || e.metaKey) && (mode === 'remove' || !spansTwoFloors(getModule()))) {
       box = { from: tile, to: tile, mode };
       ghost.hide();
@@ -932,6 +1097,18 @@ function setupInteraction(grid, ghost, boxPreview, { applyDraw, fillBox, pickAt,
     const tile = tileAt(e);
     if (!tile) return leaveGrid();
 
+    // Wall pieces follow the pointer within a tile too
+    if (wallRun) return continueWallRun(e);
+    if (isWallTool()) {
+      hoverTile = null; // so the module ghost shows again once another module is selected
+      const { edge } = nearestEdge(e);
+      if (!hoverEdge || edge.x !== hoverEdge.x || edge.y !== hoverEdge.y || edge.side !== hoverEdge.side) {
+        hoverEdge = edge;
+        updateGhost();
+      }
+      return;
+    }
+
     // Only act when entering a new tile
     if (hoverTile && hoverTile.x === tile.x && hoverTile.y === tile.y) return;
     hoverTile = tile;
@@ -948,7 +1125,7 @@ function setupInteraction(grid, ghost, boxPreview, { applyDraw, fillBox, pickAt,
     if (e.button === 1 && middleDown) {
       const moved = Math.hypot(e.global.x - middleDown.x, e.global.y - middleDown.y);
       const tile = tileAt(e);
-      if (moved <= MAX_CLICK_MOVE && tile) pick(tile);
+      if (moved <= MAX_CLICK_MOVE && tile) pick(tile, e);
     }
     endStroke();
   });

@@ -91,7 +91,7 @@ export function exteriorOpensTowards(floor, floorBelow, x, y, dx, dy) {
 }
 
 // Stairs: open behind their low end, and past their high end on the floor above
-function stairsOpenTowards(cover, dx, dy) {
+export function stairsOpenTowards(cover, dx, dy) {
   const [sx, sy] = STEP[cover.tile.rotation];
   if (cover.part === 'base' && cover.end === 'low') return dx === -sx && dy === -sy;
   if (cover.part === 'top' && cover.end === 'high') return dx === sx && dy === sy;

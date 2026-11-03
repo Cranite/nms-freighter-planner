@@ -5,8 +5,12 @@ const MAX_ENTRIES = 100;
  * Undo/redo history.
  *
  * Entries:
- * - { kind: 'tiles', floor, changes: [{ x, y, before, after }] }
- *   One drawing stroke (click or drag) on one floor; before/after are { type, rotation }
+ * - { kind: 'tiles', floor, changes: [...] }
+ *   One drawing stroke (click or drag) on one floor. Changes:
+ *   - tiles { x, y, before, after }: before/after are { type, rotation }
+ *   - walls { floor, edge, before, after }: before/after are a wall piece id or null.
+ *     Walls removed along with a module can be on the floor above (stairs),
+ *     so wall changes carry their own floor
  * - { kind: 'layout', before, after, floor }
  *   Whole layout replaced; before/after are freighter objects. `floor` is the
  *   one floor that changed (paste/clear floor), or null (load/import/new)
@@ -38,6 +42,11 @@ export function createHistory(onChange = () => {}) {
 
     if (!pending) pending = { kind: 'tiles', floor, changes: [] };
     pending.changes.push({ x, y, before, after });
+  }
+
+  function recordWall(floor, edge, before, after) {
+    if (!pending) pending = { kind: 'tiles', floor, changes: [] };
+    pending.changes.push({ floor, edge, before, after });
   }
 
   function endStroke() {
@@ -82,6 +91,7 @@ export function createHistory(onChange = () => {}) {
 
   return {
     recordTile,
+    recordWall,
     endStroke,
     recordLayout,
     undo,

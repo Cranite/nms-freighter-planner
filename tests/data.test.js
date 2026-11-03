@@ -80,3 +80,49 @@ test('unusable files give a clear error', () => {
   assert.throws(() => deserializeFreighter(savedWith(d => { d.version = 0; })), /invalid version/);
   assert.throws(() => deserializeFreighter(savedWith(d => { d.version = SAVE_VERSION + 1; })), /newer version/);
 });
+
+test('walls are saved as a list of the edges that have one', () => {
+  const freighter = layout({ 1: [[5, 5, 'scanner_room']] });
+  freighter.floors[0].walls.N[5][5] = 'internal_wall';
+  freighter.floors[0].walls.W[5][6] = 'bulkhead_door';
+
+  const data = JSON.parse(serializeFreighter(freighter));
+  assert.deepEqual(data.floors[0].walls, [[5, 5, 'N', 'internal_wall'], [6, 5, 'W', 'bulkhead_door']]);
+  assert.deepEqual(data.floors[1].walls, []);
+
+  const { freighter: loaded } = deserializeFreighter(JSON.stringify(data));
+  assert.deepEqual(loaded, freighter);
+});
+
+test('layouts without walls load with none', () => {
+  const json = savedWith(d => d.floors.forEach(floor => delete floor.walls));
+  const { freighter } = deserializeFreighter(json);
+  assert.deepEqual(freighter.floors[0].walls, createEmptyFreighter().floors[0].walls);
+});
+
+test('unknown wall pieces are skipped and counted; broken wall entries are ignored', () => {
+  const json = savedWith(d => {
+    d.floors[0].walls = [
+      [1, 1, 'N', 'laser_fence'],         // unknown piece
+      [1, 1, 'N', 'scanner_room'],        // not a wall piece
+      [1, GRID_SIZE + 1, 'N', 'internal_wall'], // outside the grid
+      [GRID_SIZE, 1, 'N', 'internal_wall'],     // N edges have no extra column
+      [1, 1, 'constructor', 'internal_wall'],
+      'oops',
+      [GRID_SIZE, 1, 'W', 'internal_wall'],     // east side of the last column: fine
+    ];
+  });
+  const { freighter, skipped } = deserializeFreighter(json);
+
+  assert.equal(skipped, 2);
+  assert.equal(freighter.floors[0].walls.W[1][GRID_SIZE], 'internal_wall');
+  assert.equal(freighter.floors[0].walls.N.flat().filter(Boolean).length, 0);
+});
+
+test('a wall piece stored as a tile module is skipped', () => {
+  const json = savedWith(d => { d.floors[0].tiles[5][5] = { type: 'internal_wall', rotation: 0 }; });
+  const { freighter, skipped } = deserializeFreighter(json);
+
+  assert.equal(skipped, 1);
+  assert.equal(typeAt(freighter, 1, 5, 5).type, null);
+});

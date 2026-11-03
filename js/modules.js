@@ -4,8 +4,7 @@
  * Source: No Man's Sky wiki, "Freighter Base Building" (Endurance, 2022),
  * checked against the in-game build menu and research tree (Oct 2026),
  * excluding small-scale technology, plants, furnishings, decoration,
- * wall art and legacy structures. Wall pieces (Internal Wall, Bulkhead
- * Door, Reinforced Window) sit between tiles and are not included yet.
+ * wall art and legacy structures.
  * "Expansion Room Variant" is left out: a reskin of Industrial Room (Expansion).
  * The Ladder Module (an add-on to a corridor, linking it to the corridor
  * above) is left out for now, see ROADMAP.md.
@@ -13,16 +12,20 @@
  * Stairs span 2 tiles in their climb direction on their own floor and
  * the same 2 tiles on the floor above (see footprint.js).
  *
+ * Wall pieces (kind 'wall') don't go on a tile but on the edge between two
+ * tiles; they're stored per floor apart from the tiles (see walls.js).
+ *
  * Each module has:
  * - id        internal identifier, stored in saves (don't rename without a save migration)
  * - label     UI display name
  * - short     2–3 character label drawn on the tile
  * - category  palette group (see CATEGORIES)
- * - kind      'corridor' | 'stairs' | 'exterior' | 'room' | 'eraser'
+ * - kind      'corridor' | 'stairs' | 'exterior' | 'room' | 'wall' | 'eraser'
  * - color     tile color (tint for corridor textures)
  * - rotatable optional, rotation (R key) matters, e.g. stairs climb direction
  * - exterior  optional, outside the hull (needs a Bulkhead Door, so it doesn't connect to the interior)
  * - icon      optional palette image
+ * - door      optional, a wall piece you can walk through (Bulkhead Door)
  */
 
 // Module id that acts as an eraser
@@ -33,6 +36,7 @@ export const CATEGORIES = [
   { id: 'hightech', label: 'High-Tech Rooms' },
   { id: 'industrial', label: 'Industrial Rooms' },
   { id: 'agricultural', label: 'Agricultural Rooms' },
+  { id: 'walls', label: 'Walls' },
 ];
 
 // Shared colors per category; expansion rooms are a darker shade
@@ -86,6 +90,11 @@ export const MODULE_TYPES = [
   room('nutrition_room', 'Nutrition Room', 'NR', 'agricultural', AGRICULTURAL),
   room('agricultural_specialist_room', "Agricultural Specialist's Room", 'AS', 'agricultural', AGRICULTURAL),
   room('biological_room_expansion', 'Biological Room (Expansion)', 'B+', 'agricultural', AGRICULTURAL_EXPANSION),
+
+  // Wall pieces, placed on the edges between tiles
+  { id: 'internal_wall', label: 'Internal Freighter Wall', short: 'W', category: 'walls', kind: 'wall', color: 0xd5d8dc },
+  { id: 'reinforced_window', label: 'Reinforced Window', short: 'RW', category: 'walls', kind: 'wall', color: 0x5dade2 },
+  { id: 'bulkhead_door', label: 'Bulkhead Door', short: 'BD', category: 'walls', kind: 'wall', color: 0xe67e22, door: true },
 
   // Eraser: placing it clears the tile
   { id: EMPTY_ID, label: 'Empty (eraser)', short: '', category: null, kind: 'eraser', color: 0x1a1a1a },

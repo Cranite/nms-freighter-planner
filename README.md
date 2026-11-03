@@ -7,6 +7,7 @@ A browser-based planning tool for designing freighter layouts using a grid syste
 - Onion skin: the floor below shows faintly, the floor above as outlines (each can be switched off)
 - Copy, paste and clear a whole floor (undoable)
 - 39 freighter modules from the game: corridors, stairs, exterior decks, High-Tech / Industrial / Agricultural rooms
+- Wall pieces on the edges between tiles: Internal Freighter Wall, Reinforced Window and Bulkhead Door. Click or drag along an edge; they only go where the game allows (next to the interior, at the ends of stairs) and are removed together with the room next to them
 - Stairs span 2 tiles and 2 floors, like in the game; occupied tiles can't be built on
 - Validation: unreachable modules, duplicate storage numbers and dead-end stairs are listed and marked on the grid
 - Corridors shape themselves (straight, corner, T, cross) based on their neighbours
@@ -34,6 +35,7 @@ The project is structured into clear layers:
 - `data.js` → state management, configuration & save format
 - `modules.js` → freighter module definitions (game data)
 - `footprint.js` → which tiles a module covers (stairs: 2 tiles on 2 floors), where it can be placed and where you can walk out of a tile
+- `walls.js` → wall pieces on the edges between tiles: where they can go, and cleaning up walls that lost their room
 - `validation.js` → layout checks (reachability from the ramp, storage numbers, stairs ends)
 - `floorTools.js` → copy, paste and clear a whole floor
 - `render.js` → PIXI rendering & interaction logic
@@ -42,7 +44,7 @@ The project is structured into clear layers:
 - `main.js` → orchestration / application logic
 
 ## 🧪 Tests
-Unit tests for the logic (footprints, validation, undo history, floor tools, save format) live in `tests/`. They use Node's built-in test runner, so there's nothing to install (Node 22 or newer):
+Unit tests for the logic (footprints, walls, validation, undo history, floor tools, save format) live in `tests/`. They use Node's built-in test runner, so there's nothing to install (Node 22 or newer):
 
 ```bash
 npm test

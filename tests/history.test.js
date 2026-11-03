@@ -95,3 +95,27 @@ test('onChange is called when undo/redo availability may change', () => {
 
   assert.equal(calls, 3);
 });
+
+test('wall changes join the stroke, each with its own floor', () => {
+  const history = createHistory();
+  const edge = { x: 0, y: 0, side: 'N' };
+  history.recordTile(1, 0, 0, EMPTY, ROOM);
+  history.recordWall(2, edge, 'internal_wall', null); // e.g. removed with stairs, on the floor above
+  history.endStroke();
+
+  const entry = history.undo();
+  assert.equal(entry.floor, 1);
+  assert.deepEqual(entry.changes[1], { floor: 2, edge, before: 'internal_wall', after: null });
+});
+
+test('a stroke of only wall changes is one step too', () => {
+  const history = createHistory();
+  history.recordWall(3, { x: 0, y: 0, side: 'N' }, null, 'internal_wall');
+  history.recordWall(3, { x: 1, y: 0, side: 'N' }, null, 'internal_wall');
+  history.endStroke();
+
+  const entry = history.undo();
+  assert.equal(entry.floor, 3);
+  assert.equal(entry.changes.length, 2);
+  assert.equal(history.canUndo(), false);
+});

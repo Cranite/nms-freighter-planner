@@ -22,7 +22,7 @@ const ROTATIONS = [0, 90, 180, 270];
 
 /**
  * Creates empty freighter structure:
- * floors -> grid -> tiles
+ * floors -> grid -> tiles, plus the walls on the edges between tiles
  */
 export function createEmptyFreighter() {
   return {
@@ -36,9 +36,28 @@ export function createEmptyFreighter() {
           rotation: 0
         }))
       ),
+
+      walls: createEmptyWalls(),
     })),
   };
 }
+
+/**
+ * Wall pieces on the edges between tiles. Neighbouring tiles share an edge,
+ * so each edge is stored once:
+ * - N[y][x]: north side of tile (x, y); row GRID_SIZE is the south side of the last row
+ * - W[y][x]: west side of tile (x, y); column GRID_SIZE is the east side of the last column
+ * Values: a wall piece's module id, or null. See walls.js for the rules.
+ */
+export function createEmptyWalls() {
+  return {
+    N: Array.from({ length: GRID_SIZE + 1 }, () => Array(GRID_SIZE).fill(null)),
+    W: Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE + 1).fill(null)),
+  };
+}
+
+// Size of each wall grid: [rows, columns]
+const WALL_GRID_SIZE = { N: [GRID_SIZE + 1, GRID_SIZE], W: [GRID_SIZE, GRID_SIZE + 1] };
 
 
 /**
@@ -47,7 +66,11 @@ export function createEmptyFreighter() {
  * {
  *   app: 'nms-freighter-planner',
  *   version: 1,
- *   floors: [{ floor: 1, tiles: [[null | { type, rotation }, ...], ...] }, ...]
+ *   floors: [{
+ *     floor: 1,
+ *     tiles: [[null | { type, rotation }, ...], ...],
+ *     walls: [[x, y, 'N' | 'W', type], ...]   only the edges with a wall piece
+ *   }, ...]
  * }
  *
  * Once layouts are in use: bump SAVE_VERSION when the format changes
@@ -75,6 +98,9 @@ export function serializeFreighter(freighter) {
       tiles: floor.tiles.map(row =>
         row.map(tile => (tile.type ? { type: tile.type, rotation: tile.rotation || 0 } : null))
       ),
+      walls: Object.entries(floor.walls).flatMap(([side, rows]) =>
+        rows.flatMap((row, y) => row.flatMap((type, x) => (type ? [[x, y, side, type]] : [])))
+      ),
     })),
   });
 }
@@ -84,7 +110,10 @@ export function serializeFreighter(freighter) {
  * Copies tiles into a fresh freighter, so a corrupt or outdated
  * file (wrong grid size, unknown module ids) can't break rendering.
  *
- * @returns {{ freighter: object, skipped: number }} skipped = tiles with unknown module types
+ * Walls are only checked for their shape here; whether an edge may hold
+ * one depends on the modules around it (pruneWalls in walls.js).
+ *
+ * @returns {{ freighter: object, skipped: number }} skipped = tiles and walls with unknown module types
  * @throws {Error} with a user-facing message if the data is unusable
  */
 export function deserializeFreighter(json) {
@@ -117,6 +146,9 @@ export function deserializeFreighter(json) {
   let skipped = 0;
 
   freighter.floors.forEach((floor, f) => {
+    const savedWalls = data.floors[f]?.walls;
+    if (Array.isArray(savedWalls)) skipped += loadWalls(floor.walls, savedWalls);
+
     const savedRows = data.floors[f]?.tiles;
     if (!Array.isArray(savedRows)) return;
 
@@ -125,8 +157,9 @@ export function deserializeFreighter(json) {
         const saved = savedRows[y]?.[x];
         if (!saved?.type || saved.type === EMPTY_ID || isLockedTile(floor.floor, x, y)) return;
 
+        // Wall pieces belong on edges, not tiles
         const modDef = MODULE_BY_ID[saved.type];
-        if (!modDef) {
+        if (!modDef || modDef.kind === 'wall') {
           skipped++;
           return;
         }
@@ -141,6 +174,30 @@ export function deserializeFreighter(json) {
   });
 
   return { freighter, skipped };
+}
+
+/**
+ * Copies saved walls [[x, y, side, type], ...] into a floor's wall grids.
+ * Entries of the wrong shape are ignored. Returns the number of
+ * entries with an unknown wall piece.
+ */
+function loadWalls(walls, saved) {
+  let skipped = 0;
+
+  for (const entry of saved) {
+    if (!Array.isArray(entry)) continue;
+
+    const [x, y, side, type] = entry;
+    const size = Object.hasOwn(WALL_GRID_SIZE, side) && WALL_GRID_SIZE[side];
+    if (!size || !Number.isInteger(x) || !Number.isInteger(y) || y < 0 || y >= size[0] || x < 0 || x >= size[1]) continue;
+
+    if (MODULE_BY_ID[type]?.kind === 'wall') {
+      walls[side][y][x] = type;
+    } else {
+      skipped++;
+    }
+  }
+  return skipped;
 }
 
 /**

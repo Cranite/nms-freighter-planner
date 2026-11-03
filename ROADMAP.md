@@ -31,8 +31,10 @@ Each step makes the next one cheaper, so the order matters.
   - Exterior pieces already join each other on the map (catwalk paths, merged platform decks; `exteriorOpensTowards`)
   - Later: auto-snapping
 - [ ] **Wall pieces: Internal Freighter Wall, Bulkhead Door, Reinforced Window**
-  - They sit on the edges between tiles, so they need an edge layer (4 sides per tile) in data, rendering and saves
-  - Unlocks the exterior/door validation rule
+  - [x] Edge layer in data and saves (`floor.walls`, `js/walls.js`), palette, place/drag/erase along edges, drawing, undo, copy/paste/clear floor, eyedropper
+  - [x] Placement rules from the game: next to the interior (rooms, corridors, the ramp), stairs only at their entrance and exit, never between two exterior pieces; walls go when their room does
+  - [ ] Validation: walls and windows block walking, a Bulkhead Door is the only way between the interior and the exterior (so exterior pieces get checked again)
+  - [ ] Extras: Ctrl+drag outlines a box with walls, walls in the onion skin
 - [ ] **Ladder Module**
   - Not a room: an add-on to a corridor that links it to the corridor on the floor above
   - Removed from the palette for now; needs a "corridor add-on" concept (and a vertical link in validation)
