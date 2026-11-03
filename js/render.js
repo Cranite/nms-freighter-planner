@@ -1,7 +1,7 @@
 import { GRID_SIZE, RAMP, isLockedTile } from './data.js';
 import { STEP, spansTwoFloors, coveringAt, opensTowards, exteriorOpensTowards } from './footprint.js';
 import { EMPTY_ID, MODULE_BY_ID } from './modules.js';
-import { tileEdge } from './walls.js';
+import { tileEdge, getWall, boxOutline } from './walls.js';
 import { isTypingTarget } from './ui.js';
 
 /**
@@ -85,11 +85,11 @@ export async function createRenderer() {
  * stageContainer
  *   ├─ grid            (static grid, single Graphics, receives pointer input)
  *   ├─ bridgeLabel     (marks the bridge side of the grid)
- *   ├─ belowContainer  (onion skin: the floor below, faint)
+ *   ├─ belowContainer  (onion skin: the floor below, faint: its modules and walls)
  *   ├─ rampMarker      (locked entrance ramp tile, floor 1 only)
  *   ├─ moduleContainer (placed modules, one display object per module start tile)
  *   ├─ wallLayer       (wall pieces on the edges between tiles)
- *   ├─ aboveOutlines   (onion skin: outlines of the floor above)
+ *   ├─ aboveOutlines   (onion skin: outlines of the floor above, and its walls as thin lines)
  *   ├─ problemMarkers  (validation problems on this floor)
  *   ├─ boxPreview      (box being drawn with Ctrl + drag)
  *   ├─ ghost.container (preview module)
@@ -100,6 +100,9 @@ function initRenderer(app) {
   const bridgeLabel = drawBridgeLabel();
   const rampMarker = drawRampMarker();
   const belowContainer = new PIXI.Container();
+  const belowModules = new PIXI.Container();
+  const belowWalls = new PIXI.Graphics();
+  belowContainer.addChild(belowModules, belowWalls);
   const moduleContainer = new PIXI.Container();
   const wallLayer = new PIXI.Graphics();
   const aboveOutlines = new PIXI.Graphics();
@@ -107,7 +110,7 @@ function initRenderer(app) {
   const stageContainer = new PIXI.Container();
 
   const modules = createModuleLayer(moduleContainer, rampMarker);
-  const below = createModuleLayer(belowContainer);
+  const below = createModuleLayer(belowModules);
   belowContainer.alpha = 0.28;
   const ghost = createGhost(modules.getFloors);
   const boxPreview = createBoxPreview();
@@ -152,7 +155,10 @@ function initRenderer(app) {
   function drawOnionSkin() {
     const floorBelow = onionSkin.below ? floors[floorNum - 2] : null;
     belowContainer.visible = !!floorBelow;
-    if (floorBelow) below.drawFloor(floorBelow, floors[floorNum - 3] ?? null);
+    if (floorBelow) {
+      below.drawFloor(floorBelow, floors[floorNum - 3] ?? null);
+      drawWallLayer(belowWalls, floorBelow);
+    }
 
     drawAboveOutlines(aboveOutlines, onionSkin.above ? floors[floorNum] : null, floors[floorNum - 1]);
   }
@@ -168,11 +174,14 @@ function initRenderer(app) {
     },
 
     // Redraw around a changed tile; the onion skin can change too (erasing stairs from their top),
-    // and so can the walls (removed along with a module)
+    // and so can the walls (removed along with a module, also on the floors around)
     drawTile(x, y) {
       modules.drawTile(x, y);
       drawWallLayer(wallLayer, floors[floorNum - 1]);
-      if (belowContainer.visible) below.drawTile(x, y);
+      if (belowContainer.visible) {
+        below.drawTile(x, y);
+        drawWallLayer(belowWalls, floors[floorNum - 2]);
+      }
       drawAboveOutlines(aboveOutlines, onionSkin.above ? floors[floorNum] : null, floors[floorNum - 1]);
     },
 
@@ -269,7 +278,8 @@ function drawProblemMarkers(g, tiles) {
 }
 
 /**
- * Onion skin: dashed outlines of the modules on the floor above.
+ * Onion skin: dashed outlines of the modules on the floor above, and its
+ * wall pieces as thin lines.
  * Stairs from this floor arriving there are skipped (already drawn here).
  */
 function drawAboveOutlines(g, floorAbove, floor) {
@@ -283,6 +293,15 @@ function drawAboveOutlines(g, floorAbove, floor) {
       if (!cover || cover.part !== 'base' || cover.modDef.kind === 'eraser') continue;
       drawDashedRect(g, x * TILE_SIZE + 3, y * TILE_SIZE + 3, TILE_SIZE - 6, TILE_SIZE - 6);
     }
+  }
+
+  for (const [side, rows] of Object.entries(floorAbove.walls)) {
+    rows.forEach((row, y) => row.forEach((type, x) => {
+      if (!type) return;
+      g.lineStyle(2, MODULE_BY_ID[type].color, 0.8);
+      g.moveTo(x * TILE_SIZE, y * TILE_SIZE);
+      g.lineTo((x + (side === 'N' ? 1 : 0)) * TILE_SIZE, (y + (side === 'W' ? 1 : 0)) * TILE_SIZE);
+    }));
   }
 }
 
@@ -333,6 +352,8 @@ function corridorShape(mask) {
  * Sides of tile (x, y) whose neighbour opens towards it.
  * `opens` is the rule: opensTowards for corridors (ramp, interior modules,
  * stairs only at their ends), exteriorOpensTowards for catwalks and platforms.
+ * A wall or window closes a side; a Bulkhead Door joins whatever is behind it,
+ * inside or outside (a corridor out onto a catwalk, a catwalk up to a door).
  */
 function neighbourMask(floor, floorBelow, x, y, opens = opensTowards) {
   let mask = 0;
@@ -341,7 +362,13 @@ function neighbourMask(floor, floorBelow, x, y, opens = opensTowards) {
     const nx = x + dx, ny = y + dy;
     if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE) continue;
 
-    if (opens(floor, floorBelow, nx, ny, -dx, -dy)) mask |= dir;
+    const piece = MODULE_BY_ID[getWall(floor, tileEdge(x, y, dx, dy))];
+    if (piece && !piece.door) continue;
+
+    const joined = piece
+      ? opensTowards(floor, floorBelow, nx, ny, -dx, -dy) || exteriorOpensTowards(floor, floorBelow, nx, ny, -dx, -dy)
+      : opens(floor, floorBelow, nx, ny, -dx, -dy);
+    if (joined) mask |= dir;
   }
   return mask;
 }
@@ -718,7 +745,8 @@ function createEdgeGhost() {
 
 /**
  * Box drawn with Ctrl + drag: faint fill and outline, red marks on tiles
- * the module can't go, and the box size in the middle
+ * the module can't go, and the box size in the middle.
+ * With a wall piece: the pieces along the outline instead, red where one can't go.
  */
 function createBoxPreview() {
   const container = new PIXI.Container();
@@ -732,8 +760,10 @@ function createBoxPreview() {
    * @param box { x0, y0, x1, y1 } tile corners, inclusive
    * @param erasing red box, no per-tile marks (erasing works everywhere)
    * @param canPlaceAt (x, y) → can the selected module go there?
+   * @param wall optional { piece, canWallAt }: a wall piece's outline instead
    */
-  function show({ x0, y0, x1, y1 }, erasing, canPlaceAt) {
+  function show(box, erasing, canPlaceAt, wall = null) {
+    const { x0, y0, x1, y1 } = box;
     const color = erasing ? 0xff4d4d : 0xffffff;
     const width = (x1 - x0 + 1) * TILE_SIZE;
     const height = (y1 - y0 + 1) * TILE_SIZE;
@@ -743,7 +773,11 @@ function createBoxPreview() {
     g.drawRect(x0 * TILE_SIZE, y0 * TILE_SIZE, width, height);
     g.endFill();
 
-    if (!erasing) {
+    if (wall && !erasing) {
+      for (const edge of boxOutline(box)) {
+        drawWallPiece(g, wall.piece, edge, wall.canWallAt(edge) ? wall.piece.color : 0xff4d4d);
+      }
+    } else if (!erasing) {
       g.lineStyle(2, 0xff4d4d);
       for (let y = y0; y <= y1; y++) {
         for (let x = x0; x <= x1; x++) {
@@ -897,8 +931,9 @@ function centerStage(stageContainer, app) {
  * - R = rotate module
  * - Wall pieces go on the edge nearest to the pointer instead of a tile:
  *   click places, drag places a straight run along that grid line,
- *   right-click / Shift removes. The eyedropper picks a wall piece when
- *   the pointer is right by its edge.
+ *   right-click / Shift removes. Ctrl + drag puts them along the outline of a
+ *   box, Ctrl + right-drag clears every wall piece in it. The eyedropper picks
+ *   a wall piece when the pointer is right by its edge.
  *
  * One pointer handler on the grid works out the tile (or edge) under the pointer.
  * `canPlaceAt(x, y)` / `canWallAt(edge)` tell the ghost previews whether placing is allowed there.
@@ -914,7 +949,8 @@ function setupInteraction(grid, ghost, edgeGhost, boxPreview, {
 
   const showBox = () => {
     const erasing = box.mode === 'remove' || getModule()?.id === EMPTY_ID;
-    boxPreview.show(boxBetween(box.from, box.to), erasing, canPlaceAt);
+    const wall = isWallTool() ? { piece: getModule(), canWallAt } : null;
+    boxPreview.show(boxBetween(box.from, box.to), erasing, canPlaceAt, wall);
   };
 
   // Released: fill the box (one undo step). Esc: drop it.
@@ -1076,16 +1112,17 @@ function setupInteraction(grid, ghost, edgeGhost, boxPreview, {
 
     if (e.altKey && e.button === 0) return pick(tile, e);
 
+    // Ctrl (Cmd on Mac) + drag: a box instead of a stroke (wall pieces: its outline)
     const mode = e.button === 2 || e.shiftKey ? 'remove' : 'place';
-    if (isWallTool()) return startWallRun(nearestEdge(e).edge, mode);
-
-    // Ctrl (Cmd on Mac) + drag: a box instead of a stroke
     if ((e.ctrlKey || e.metaKey) && (mode === 'remove' || !spansTwoFloors(getModule()))) {
       box = { from: tile, to: tile, mode };
       ghost.hide();
+      edgeGhost.hide();
       showBox();
       return;
     }
+
+    if (isWallTool()) return startWallRun(nearestEdge(e).edge, mode);
 
     isDrawing = true;
     isErasing = e.button === 2;
@@ -1097,9 +1134,9 @@ function setupInteraction(grid, ghost, edgeGhost, boxPreview, {
     const tile = tileAt(e);
     if (!tile) return leaveGrid();
 
-    // Wall pieces follow the pointer within a tile too
+    // Wall pieces follow the pointer within a tile too (a box still goes by tile)
     if (wallRun) return continueWallRun(e);
-    if (isWallTool()) {
+    if (isWallTool() && !box) {
       hoverTile = null; // so the module ghost shows again once another module is selected
       const { edge } = nearestEdge(e);
       if (!hoverEdge || edge.x !== hoverEdge.x || edge.y !== hoverEdge.y || edge.side !== hoverEdge.side) {

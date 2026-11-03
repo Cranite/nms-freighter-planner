@@ -4,10 +4,10 @@ A browser-based planning tool for designing freighter layouts using a grid syste
 
 ## 🚀 Features
 - Multi-floor support (14 floors, 21×21 capital freighter grid); Page Up / Page Down changes floor
-- Onion skin: the floor below shows faintly, the floor above as outlines (each can be switched off)
+- Onion skin: the floor below shows faintly, the floor above as outlines, both with their walls (each can be switched off)
 - Copy, paste and clear a whole floor (undoable)
 - 39 freighter modules from the game: corridors, stairs, exterior decks, High-Tech / Industrial / Agricultural rooms
-- Wall pieces on the edges between tiles: Internal Freighter Wall, Reinforced Window and Bulkhead Door. Click or drag along an edge; they only go where the game allows (next to the interior, at the ends of stairs) and are removed together with the room next to them
+- Wall pieces on the edges between tiles: Internal Freighter Wall, Reinforced Window and Bulkhead Door. Click or drag along an edge, or Ctrl+drag to put them around a box (Ctrl+right-drag clears a box). They only go where the game allows (next to the interior, at the ends of stairs) and are removed together with the room next to them. Corridors and catwalks shape themselves around them: a wall closes a side, a door opens onto what's behind it
 - Stairs span 2 tiles and 2 floors, like in the game; occupied tiles can't be built on
 - Validation: unreachable modules, duplicate storage numbers and dead-end stairs are listed and marked on the grid. Walls and windows block the way; the exterior (catwalks, platforms, exterior stairs) is only reachable through a Bulkhead Door
 - Corridors shape themselves (straight, corner, T, cross) based on their neighbours

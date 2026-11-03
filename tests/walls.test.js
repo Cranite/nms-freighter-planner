@@ -1,7 +1,9 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { GRID_SIZE } from '../js/data.js';
-import { tileEdge, edgeTiles, getWall, setWall, canHaveWall, pruneWalls, pruneWallsAround } from '../js/walls.js';
+import {
+  tileEdge, edgeTiles, getWall, setWall, canHaveWall, pruneWalls, pruneWallsAround, boxOutline, edgesAround,
+} from '../js/walls.js';
 import { layout, floorPair, NORTH, EAST, SOUTH, WEST } from './helpers.js';
 
 const WALL = 'internal_wall';
@@ -133,5 +135,25 @@ describe('pruneWalls: walls go when the interior next to them does', () => {
 
     assert.equal(getWall(floor, tileEdge(5, 5, ...WEST)), null);
     assert.equal(getWall(floor, tileEdge(5, 5, ...SOUTH)), WALL); // the entrance
+  });
+});
+
+describe('box edges (Ctrl + drag with a wall piece)', () => {
+  const key = ({ x, y, side }) => `${side}${x},${y}`;
+
+  test('the outline of a 2 × 1 box: 6 edges around it, none inside', () => {
+    const edges = [...boxOutline({ x0: 5, y0: 5, x1: 6, y1: 5 })].map(key).sort();
+    assert.deepEqual(edges, ['N5,5', 'N5,6', 'N6,5', 'N6,6', 'W5,5', 'W7,5']);
+  });
+
+  test('the outline of one tile is its 4 sides', () => {
+    const edges = [...boxOutline({ x0: 3, y0: 3, x1: 3, y1: 3 })].map(key).sort();
+    const sides = [NORTH, EAST, SOUTH, WEST].map(([dx, dy]) => key(tileEdge(3, 3, dx, dy))).sort();
+    assert.deepEqual(edges, sides);
+  });
+
+  test('all edges of a 2 × 1 box: the outline plus the one between the tiles', () => {
+    const edges = [...edgesAround({ x0: 5, y0: 5, x1: 6, y1: 5 })].map(key).sort();
+    assert.deepEqual(edges, ['N5,5', 'N5,6', 'N6,5', 'N6,6', 'W5,5', 'W6,5', 'W7,5']);
   });
 });

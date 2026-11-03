@@ -9,7 +9,7 @@ import { createRenderer } from './render.js';
 import { createHistory } from './history.js';
 import { validateLayout } from './validation.js';
 import { copyFloor, pasteFloor, clearFloor } from './floorTools.js';
-import { canHaveWall, getWall, setWall, pruneWallsAround, pruneAllWalls } from './walls.js';
+import { canHaveWall, getWall, setWall, pruneWallsAround, pruneAllWalls, edgesAround, boxOutline } from './walls.js';
 
 // Application state; continues where the last session left off (auto-save)
 let freighter = loadAutosave() ?? createEmptyFreighter();
@@ -252,7 +252,9 @@ function applyHistoryEntry(entry, side) {
   const visibleHere = entry.floor === currentFloor || (entry.floor === currentFloor - 1 && touchesStairs);
 
   if (visibleHere) {
-    tileChanges.forEach(({ x, y }) => renderer.drawTile(x, y));
+    // Walls change corridor shapes next to them, so redraw around those too
+    const wallsHere = entry.changes.filter(c => c.edge && c.floor === currentFloor).map(c => c.edge);
+    [...tileChanges, ...wallsHere].forEach(({ x, y }) => renderer.drawTile(x, y));
     renderer.drawWalls();
   } else {
     // Switch to the floor the change was made on, so it's visible
@@ -306,21 +308,27 @@ function applyDraw(x, y, mode) {
   setTile(currentFloor, x, y, selectedModule.id, rotation);
 }
 
-// True while fillBox runs: setTile then leaves redrawing to fillBox
+// True while fillBox runs: setTile and setWallAt then leave redrawing to fillBox
 let fillingBox = false;
 
 /**
  * Box fill (Ctrl + drag): places or removes on every tile of the box.
  * applyDraw skips tiles where the module can't go. Redraws once at the end
  * instead of per tile, so even a whole-floor box is quick.
+ * With a wall piece selected it places that piece around the outline of the
+ * box instead, and removing clears every wall piece in and around the box.
  * @param box { x0, y0, x1, y1 } tile corners, inclusive
  * @param mode 'place' | 'remove'
  */
-function fillBox({ x0, y0, x1, y1 }, mode) {
+function fillBox(box, mode) {
   fillingBox = true;
   try {
-    for (let y = y0; y <= y1; y++) {
-      for (let x = x0; x <= x1; x++) applyDraw(x, y, mode);
+    if (selectedModule?.kind === 'wall') {
+      for (const edge of mode === 'remove' ? edgesAround(box) : boxOutline(box)) applyWall(edge, mode);
+    } else {
+      for (let y = box.y0; y <= box.y1; y++) {
+        for (let x = box.x0; x <= box.x1; x++) applyDraw(x, y, mode);
+      }
     }
   } finally {
     fillingBox = false;
@@ -355,7 +363,12 @@ function setWallAt(edge, type) {
 
   setWall(floor, edge, type);
   history.recordWall(currentFloor, edge, before, type);
-  renderer.drawWalls();
+
+  // A box fill redraws once when it's done
+  if (fillingBox) return;
+
+  // The wall itself, and the corridor shapes on both sides of it
+  renderer.drawTile(edge.x, edge.y);
   onLayoutChanged();
 }
 

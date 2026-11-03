@@ -92,8 +92,8 @@ export function connects(floor, floorBelow, x, y, dx, dy) {
   return !!piece && (fromInside || fromOutside) && (toInside || toOutside);
 }
 
-// Every edge around the tiles of an area { x0, y0, x1, y1 } (inclusive, clamped to the grid)
-function* edgesAround({ x0, y0, x1, y1 }) {
+// Every edge around and between the tiles of an area { x0, y0, x1, y1 } (inclusive, clamped to the grid)
+export function* edgesAround({ x0, y0, x1, y1 }) {
   x0 = Math.max(x0, 0);
   y0 = Math.max(y0, 0);
   x1 = Math.min(x1, GRID_SIZE - 1);
@@ -104,6 +104,18 @@ function* edgesAround({ x0, y0, x1, y1 }) {
   }
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1 + 1; x++) yield { x, y, side: 'W' };
+  }
+}
+
+// Only the edges on the outline of an area { x0, y0, x1, y1 } (inclusive)
+export function* boxOutline({ x0, y0, x1, y1 }) {
+  for (let x = x0; x <= x1; x++) {
+    yield { x, y: y0, side: 'N' };
+    yield { x, y: y1 + 1, side: 'N' };
+  }
+  for (let y = y0; y <= y1; y++) {
+    yield { x: x0, y, side: 'W' };
+    yield { x: x1 + 1, y, side: 'W' };
   }
 }
 

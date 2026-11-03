@@ -34,7 +34,7 @@ Each step makes the next one cheaper, so the order matters.
   - [x] Edge layer in data and saves (`floor.walls`, `js/walls.js`), palette, place/drag/erase along edges, drawing, undo, copy/paste/clear floor, eyedropper
   - [x] Placement rules from the game: next to the interior (rooms, corridors, the ramp), stairs only at their entrance and exit, never between two exterior pieces; walls go when their room does
   - [x] Validation: walls and windows block walking, a Bulkhead Door is the only way between the interior and the exterior (so exterior pieces get checked again)
-  - [ ] Extras: Ctrl+drag outlines a box with walls, walls in the onion skin
+  - [x] Extras: Ctrl+drag outlines a box with walls (Ctrl+right-drag clears it), walls in the onion skin, corridor and catwalk shapes follow walls and doors
 - [ ] **Ladder Module**
   - Not a room: an add-on to a corridor that links it to the corridor on the floor above
   - Removed from the palette for now; needs a "corridor add-on" concept (and a vertical link in validation)
