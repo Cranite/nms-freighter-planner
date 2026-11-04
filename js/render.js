@@ -206,9 +206,80 @@ function initRenderer(app) {
       placeBridgeLabel(bridgeLabel);
     },
 
+    // A picture of floors `floorNums` of `allFloors` as a PNG Blob (see renderFloorsImage)
+    exportImage: (allFloors, floorNums) => renderFloorsImage(app.renderer, allFloors, floorNums),
+
     showProblemTiles: (tiles) => drawProblemMarkers(problemMarkers, tiles),
     setupInteraction: (handlers) => setupInteraction(grid, ghost, edgeGhost, boxPreview, handlers),
   };
+}
+
+// Exported pictures: tile size whatever the screen size, and floors per row
+const EXPORT_TILE_SIZE = 48;
+const EXPORT_COLUMNS = 4;
+
+/**
+ * A picture of some floors, side by side with a title above each, as a PNG
+ * Blob. Each floor shows its modules and walls in the current view rotation;
+ * no onion skin, validation markers or previews, so it's a clean plan.
+ */
+async function renderFloorsImage(renderer, floors, floorNums) {
+  const scale = EXPORT_TILE_SIZE / TILE_SIZE;
+  const pictures = floorNums.map(n => renderFloorPicture(renderer, floors, n, scale));
+
+  // Same cell for every floor (the bridge label makes floors differ a little)
+  const cellWidth = Math.max(...pictures.map(p => p.width));
+  const cellHeight = Math.max(...pictures.map(p => p.height));
+  const titleHeight = 36, gap = 24;
+  const columns = Math.min(EXPORT_COLUMNS, pictures.length);
+  const rows = Math.ceil(pictures.length / columns);
+
+  // Composed on a 2D canvas: one big WebGL texture could pass the GPU's size limit
+  const canvas = document.createElement('canvas');
+  canvas.width = gap + columns * (cellWidth + gap);
+  canvas.height = gap + rows * (titleHeight + cellHeight + gap);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.font = 'bold 22px sans-serif';
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  pictures.forEach((picture, i) => {
+    const left = gap + (i % columns) * (cellWidth + gap);
+    const top = gap + Math.floor(i / columns) * (titleHeight + cellHeight + gap);
+    ctx.fillText(`Floor ${floorNums[i]}`, left + cellWidth / 2, top + titleHeight / 2);
+    ctx.drawImage(picture, left + (cellWidth - picture.width) / 2, top + titleHeight + (cellHeight - picture.height) / 2);
+  });
+
+  return new Promise((resolve, reject) => canvas.toBlob(
+    blob => blob ? resolve(blob) : reject(new Error('The browser could not make the picture.')),
+    'image/png'));
+}
+
+// One floor drawn on its own, off screen, into a canvas at `scale`
+function renderFloorPicture(renderer, floors, n, scale) {
+  const view = new PIXI.Container();
+  view.pivot.set((GRID_SIZE * TILE_SIZE) / 2, (GRID_SIZE * TILE_SIZE) / 2);
+  view.rotation = viewTurns * Math.PI / 2;
+
+  const entranceMarker = drawEntranceMarker();
+  const moduleContainer = new PIXI.Container();
+  const walls = new PIXI.Graphics();
+  view.addChild(drawGrid(), drawBridgeLabel(), entranceMarker, moduleContainer, walls);
+  createModuleLayer(moduleContainer, entranceMarker).drawFloor(floors[n - 1], floors[n - 2] ?? null);
+  drawWallLayer(walls, floors[n - 1]);
+
+  // Wrapped: a texture is cut to the object's own bounds, which leave out its own rotation
+  const picture = new PIXI.Container();
+  picture.addChild(view);
+  const texture = renderer.generateTexture(picture, { resolution: scale });
+  const canvas = renderer.extract.canvas(texture);
+
+  texture.destroy(true);
+  picture.destroy({ children: true });
+  return canvas;
 }
 
 /**

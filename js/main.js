@@ -4,7 +4,7 @@ import {
 } from './data.js';
 import { EMPTY_ID, MODULE_BY_ID } from './modules.js';
 import { canPlace, coveringAt, spansTwoFloors } from './footprint.js';
-import { setupUI, downloadTextFile } from './ui.js';
+import { setupUI, downloadTextFile, downloadFile } from './ui.js';
 import { createRenderer } from './render.js';
 import { createHistory } from './history.js';
 import { validateLayout } from './validation.js';
@@ -107,8 +107,20 @@ const ui = setupUI({
   },
 
   onExport: () => {
-    const date = new Date().toISOString().slice(0, 10);
-    downloadTextFile(`freighter-layout-${date}.json`, serializeFreighter(freighter));
+    downloadTextFile(`freighter-layout-${today()}.json`, serializeFreighter(freighter));
+  },
+
+  // PNG of the current floor, or of all floors with something on them
+  onExportImage: async (allFloors) => {
+    const withContent = floorsWithContent().flatMap((has, i) => has ? [i + 1] : []);
+    const floorNums = allFloors && withContent.length ? withContent : [currentFloor];
+    try {
+      const image = await renderer.exportImage(freighter.floors, floorNums);
+      const name = allFloors ? 'all-floors' : `floor-${currentFloor}`;
+      downloadFile(`freighter-${name}-${today()}.png`, image);
+    } catch (err) {
+      alert(`Picture could not be made: ${err.message}`);
+    }
   },
 
   onImport: (text) => {
@@ -243,6 +255,9 @@ function scheduleValidation() {
 function showProblemMarkers() {
   renderer.showProblemTiles(problems.flatMap(p => p.locations).filter(l => l.floor === currentFloor));
 }
+
+// Date for file names: 2026-11-04
+const today = () => new Date().toISOString().slice(0, 10);
 
 // Per floor: does it have any module on it?
 function floorsWithContent() {

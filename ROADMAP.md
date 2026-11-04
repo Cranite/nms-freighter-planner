@@ -49,7 +49,7 @@ Each step makes the next one cheaper, so the order matters.
 - [x] Share by link: the layout compressed into the URL `#hash` (`js/share.js`; no server needed, works on GitHub Pages)
 - [x] Auto-save (own slot, separate from the Save/Load checkpoint; plus a "New layout" button)
 - [ ] Multiple named save slots
-- [ ] Export floor (or all floors side by side) as PNG
+- [x] Export floor (or all floors side by side) as PNG (`renderFloorsImage` in `js/render.js`)
 
 ## ✏️ Editing tools
 

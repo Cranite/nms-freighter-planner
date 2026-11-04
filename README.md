@@ -22,6 +22,7 @@ A browser-based planning tool for designing freighter layouts using a grid syste
 - Auto-save: your current work is restored when you come back (stored in this browser only)
 - Save/load a checkpoint via localStorage; "New layout" starts fresh (undoable)
 - Export/import layout as JSON file (versioned format)
+- Export as PNG: a picture of the current floor, or of all floors with something on them side by side (modules and walls, in the turned view if you turned it)
 - Share by link: "Copy share link" puts the whole layout in the link (`#layout=…`, compressed); opening it loads the layout (undoable, asks first if you have work open). No server needed
 - Undo/redo (Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z) — a drag undoes as one step, load/import can be undone too, and undo shows the floor that changed
 - Texture-based rendering with fallback colors

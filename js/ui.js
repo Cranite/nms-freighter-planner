@@ -5,7 +5,7 @@ import { MODULE_TYPES, CATEGORIES, EMPTY_ID } from './modules.js';
  * Builds the sidebar and wires up its controls.
  * Returns functions to update UI state from the app.
  */
-export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onViewTurn, onCopyFloor, onPasteFloor, onClearFloor, onNew, onSave, onLoad, onExport, onImport, onShare, onUndo, onRedo, onGoToFloor }) {
+export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onViewTurn, onCopyFloor, onPasteFloor, onClearFloor, onNew, onSave, onLoad, onExport, onImport, onShare, onExportImage, onUndo, onRedo, onGoToFloor }) {
   const palette = buildPalette(onSelectModule);
 
   // Floor Selector
@@ -53,6 +53,8 @@ export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onVi
   document.getElementById('loadBtn').addEventListener('click', onLoad);
   document.getElementById('exportBtn').addEventListener('click', onExport);
   document.getElementById('shareBtn').addEventListener('click', onShare);
+  document.getElementById('exportFloorImageBtn').addEventListener('click', () => onExportImage(false));
+  document.getElementById('exportAllImageBtn').addEventListener('click', () => onExportImage(true));
 
   // Import: button opens hidden file picker, file text is passed on
   const importInput = document.getElementById('importInput');
@@ -358,7 +360,14 @@ function createModuleButton(mod) {
  * Lets the browser download text as a file
  */
 export function downloadTextFile(filename, text, mimeType = 'application/json') {
-  const url = URL.createObjectURL(new Blob([text], { type: mimeType }));
+  downloadFile(filename, new Blob([text], { type: mimeType }));
+}
+
+/**
+ * Lets the browser download a Blob (e.g. a picture) as a file
+ */
+export function downloadFile(filename, blob) {
+  const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
