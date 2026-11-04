@@ -30,7 +30,7 @@ Each step makes the next one cheaper, so the order matters.
   - Walls and windows block the way; Exterior Catwalk/Platform/Stairs need a Bulkhead Door to be reachable (`connects` in `js/walls.js`)
   - Exterior pieces already join each other on the map (catwalk paths, merged platform decks; `exteriorOpensTowards`)
   - Later: auto-snapping
-- [ ] **Wall pieces: Internal Freighter Wall, Bulkhead Door, Reinforced Window**
+- [x] **Wall pieces: Internal Freighter Wall, Bulkhead Door, Reinforced Window**
   - [x] Edge layer in data and saves (`floor.walls`, `js/walls.js`), palette, place/drag/erase along edges, drawing, undo, copy/paste/clear floor, eyedropper
   - [x] Placement rules from the game: next to the interior (rooms, corridors), stairs only at their entrance and exit, never between two exterior pieces; walls go when their room does
   - [x] Validation: walls and windows block walking, a Bulkhead Door is the only way between the interior and the exterior (so exterior pieces get checked again)
@@ -46,7 +46,7 @@ Each step makes the next one cheaper, so the order matters.
 
 ## 💾 Saving & sharing
 
-- [ ] Share by link: compress layout into the URL `#hash` (no server needed, works on GitHub Pages)
+- [x] Share by link: the layout compressed into the URL `#hash` (`js/share.js`; no server needed, works on GitHub Pages)
 - [x] Auto-save (own slot, separate from the Save/Load checkpoint; plus a "New layout" button)
 - [ ] Multiple named save slots
 - [ ] Export floor (or all floors side by side) as PNG

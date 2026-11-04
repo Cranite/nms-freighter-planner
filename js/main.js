@@ -9,6 +9,7 @@ import { createRenderer } from './render.js';
 import { createHistory } from './history.js';
 import { validateLayout } from './validation.js';
 import { copyFloor, pasteFloor, clearFloor } from './floorTools.js';
+import { layoutToHash, layoutFromHash } from './share.js';
 import { canHaveWall, getWall, setWall, pruneWallsAround, pruneAllWalls, edgesAround, boxOutline } from './walls.js';
 
 // Application state; continues where the last session left off (auto-save)
@@ -123,6 +124,18 @@ const ui = setupUI({
     alert(`Layout imported!${skippedNote(result.skipped)}`);
   },
 
+  // Copy a link that opens this layout; if the clipboard is blocked, show the link to copy by hand
+  onShare: async () => {
+    const link = location.origin + location.pathname + await layoutToHash(freighter);
+    const longNote = link.length > LONG_LINK ? ' It\'s long: some chat apps cut long links off, Export file is safer there.' : '';
+    try {
+      await navigator.clipboard.writeText(link);
+      ui.setShareStatus(`Link copied (${link.length.toLocaleString()} characters).${longNote}`);
+    } catch {
+      prompt(`Copy this link:${longNote}`, link);
+    }
+  },
+
   onUndo: () => {
     const entry = history.undo();
     if (entry) applyHistoryEntry(entry, 'before');
@@ -135,6 +148,44 @@ const ui = setupUI({
 });
 
 ui.setUndoRedoState(history.canUndo(), history.canRedo());
+
+// Links longer than this get a warning (some chat apps cut them off)
+const LONG_LINK = 8000;
+
+/**
+ * Opens a shared layout from the address bar (#layout=...): on start, and
+ * when a link is pasted into this tab (that only changes the hash).
+ * Undoable like an import; the hash is removed again, so a reload doesn't
+ * open it a second time over later work.
+ */
+async function openSharedLink() {
+  const hash = location.hash;
+  if (!hash) return;
+
+  let result;
+  try {
+    result = await layoutFromHash(hash);
+  } catch (err) {
+    clearLinkHash();
+    alert(`Shared layout could not be opened: ${err.message}`);
+    return;
+  }
+  if (!result) return;
+  clearLinkHash();
+
+  const hasContent = floorsWithContent().some(Boolean);
+  if (hasContent && !confirm('Open the shared layout? It replaces your current layout (Ctrl+Z undoes this).')) return;
+
+  replaceFreighter(result);
+  if (result.skipped) alert(`Shared layout opened.${skippedNote(result.skipped)}`);
+}
+
+// window.history: `history` here is the undo history
+function clearLinkHash() {
+  window.history.replaceState(null, '', location.pathname + location.search);
+}
+
+window.addEventListener('hashchange', openSharedLink);
 
 /**
  * Swaps in a new layout (undoable) and redraws
@@ -451,3 +502,4 @@ renderer.setOnionSkin(ui.getOnionSkin());
 renderer.setViewTurns(ui.getViewTurns());
 drawCurrentFloor();
 onLayoutChanged();
+openSharedLink();

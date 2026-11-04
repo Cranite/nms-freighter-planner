@@ -22,6 +22,7 @@ A browser-based planning tool for designing freighter layouts using a grid syste
 - Auto-save: your current work is restored when you come back (stored in this browser only)
 - Save/load a checkpoint via localStorage; "New layout" starts fresh (undoable)
 - Export/import layout as JSON file (versioned format)
+- Share by link: "Copy share link" puts the whole layout in the link (`#layout=…`, compressed); opening it loads the layout (undoable, asks first if you have work open). No server needed
 - Undo/redo (Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z) — a drag undoes as one step, load/import can be undone too, and undo shows the floor that changed
 - Texture-based rendering with fallback colors
 
@@ -39,6 +40,7 @@ The project is structured into clear layers:
 - `walls.js` → wall pieces on the edges between tiles: where they can go, and cleaning up walls that lost their room
 - `validation.js` → layout checks (reachability from the bridge, storage numbers, stairs ends)
 - `floorTools.js` → copy, paste and clear a whole floor
+- `share.js` → share links: the layout compressed into the URL #hash
 - `render.js` → PIXI rendering & interaction logic
 - `ui.js` → DOM-based UI
 - `history.js` → undo/redo history

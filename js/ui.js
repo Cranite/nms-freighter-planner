@@ -5,7 +5,7 @@ import { MODULE_TYPES, CATEGORIES, EMPTY_ID } from './modules.js';
  * Builds the sidebar and wires up its controls.
  * Returns functions to update UI state from the app.
  */
-export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onViewTurn, onCopyFloor, onPasteFloor, onClearFloor, onNew, onSave, onLoad, onExport, onImport, onUndo, onRedo, onGoToFloor }) {
+export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onViewTurn, onCopyFloor, onPasteFloor, onClearFloor, onNew, onSave, onLoad, onExport, onImport, onShare, onUndo, onRedo, onGoToFloor }) {
   const palette = buildPalette(onSelectModule);
 
   // Floor Selector
@@ -52,6 +52,7 @@ export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onVi
   document.getElementById('saveBtn').addEventListener('click', onSave);
   document.getElementById('loadBtn').addEventListener('click', onLoad);
   document.getElementById('exportBtn').addEventListener('click', onExport);
+  document.getElementById('shareBtn').addEventListener('click', onShare);
 
   // Import: button opens hidden file picker, file text is passed on
   const importInput = document.getElementById('importInput');
@@ -128,6 +129,11 @@ export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onVi
       pasteFloorBtn.disabled = false;
       pasteFloorBtn.title = `Replace this floor with the copy of floor ${n}`;
       document.getElementById('copiedFloor').textContent = `Copied: floor ${n}`;
+    },
+
+    // Result of copying a share link, under the Share button
+    setShareStatus(text) {
+      document.getElementById('shareStatus').textContent = text;
     },
 
     // Reflect a module picked by the app (eyedropper)
