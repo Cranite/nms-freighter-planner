@@ -38,6 +38,7 @@ const ui = setupUI({
   onSelectModule: (mod) => {
     selectedModule = mod;
     selectedRotation = upOnScreen(); // reset rotation on new selection
+    renderer.refreshGhost(); // e.g. picked with a hotbar key while over the grid
   },
 
   onSelectFloor: (n) => goToFloor(n),

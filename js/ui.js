@@ -1,12 +1,28 @@
 import { FLOORS } from './data.js';
-import { MODULE_TYPES, CATEGORIES, EMPTY_ID } from './modules.js';
+import { MODULE_TYPES, MODULE_BY_ID, CATEGORIES, EMPTY_ID } from './modules.js';
+import {
+  HOTBAR_KEYS, ERASER_SLOT, slotForKey, moduleInSlot, assignSlot, clearSlot, loadHotbar, saveHotbar,
+} from './hotbar.js';
 
 /**
  * Builds the sidebar and wires up its controls.
  * Returns functions to update UI state from the app.
  */
 export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onViewTurn, onCopyFloor, onPasteFloor, onClearFloor, onNew, onSave, onLoad, onExport, onImport, onShare, onExportImage, onUndo, onRedo, onGoToFloor }) {
-  const palette = buildPalette(onSelectModule);
+  // Selecting a module: from the palette, the hotbar or its number keys
+  let selectedId = null;
+  const markSelected = (id) => {
+    selectedId = id;
+    palette.select(id);
+    hotbar.draw();
+  };
+  const chooseModule = (mod) => {
+    markSelected(mod.id);
+    onSelectModule(mod);
+  };
+
+  const palette = buildPalette(chooseModule);
+  const hotbar = buildHotbar(chooseModule, () => selectedId);
 
   // Floor Selector
   const floorSelect = document.getElementById('floorSelect');
@@ -90,6 +106,15 @@ export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onVi
       return;
     }
 
+    // 1–9, 0: select from the hotbar; Shift + 1–9: store the selected module there
+    const slot = slotForKey(e.code);
+    if (slot !== -1 && !(e.ctrlKey || e.metaKey || e.altKey)) {
+      e.preventDefault(); // e.g. no jumping to an option in the floor selector
+      if (e.shiftKey) hotbar.store(slot);
+      else hotbar.choose(slot);
+      return;
+    }
+
     // Q / E: turn the view left / right
     const plainKey = e.key.toLowerCase();
     if ((plainKey === 'q' || plainKey === 'e') && !(e.ctrlKey || e.metaKey || e.altKey)) {
@@ -140,7 +165,7 @@ export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onVi
 
     // Reflect a module picked by the app (eyedropper)
     selectModule(id) {
-      palette.select(id);
+      markSelected(id);
     },
 
     // Validation problems: [{ message, locations: [{ floor, x, y }] }]
@@ -241,9 +266,121 @@ function saveViewTurns(turns) {
   }
 }
 
+// Drag data type for a module dragged onto the hotbar (from the palette or another slot)
+const MODULE_DRAG_TYPE = 'application/x-freighter-module';
+
+// localStorage itself can throw when site data is blocked; hotbar.js then uses its defaults
+function browserStorage() {
+  try {
+    return localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Hotbar along the bottom of the drawing area: slots 1–9 hold modules you
+ * choose, 0 is the eraser (see hotbar.js). Click a slot to select it,
+ * drag a module onto a slot to store it there (or a slot onto another to
+ * swap them), right-click to empty it.
+ */
+function buildHotbar(onChoose, getSelectedId) {
+  const bar = document.getElementById('hotbar');
+  const storage = browserStorage();
+  let slots = loadHotbar(storage);
+
+  const update = (next) => {
+    slots = next;
+    saveHotbar(storage, slots);
+    draw();
+  };
+
+  const choose = (index) => {
+    const id = moduleInSlot(slots, index);
+    if (id) onChoose(MODULE_BY_ID[id]);
+  };
+
+  const buttons = HOTBAR_KEYS.map((key, index) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'hotbar-slot';
+    btn.addEventListener('click', () => choose(index));
+
+    if (index === ERASER_SLOT) {
+      btn.classList.add('eraser-slot');
+    } else {
+      btn.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        update(clearSlot(slots, index));
+      });
+
+      btn.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData(MODULE_DRAG_TYPE, slots[index]);
+      });
+      btn.addEventListener('dragover', (e) => {
+        if (!e.dataTransfer.types.includes(MODULE_DRAG_TYPE)) return;
+        e.preventDefault(); // allows the drop
+        btn.classList.add('drop-target');
+      });
+      btn.addEventListener('dragleave', () => btn.classList.remove('drop-target'));
+      btn.addEventListener('drop', (e) => {
+        e.preventDefault();
+        btn.classList.remove('drop-target');
+        update(assignSlot(slots, index, e.dataTransfer.getData(MODULE_DRAG_TYPE)));
+      });
+    }
+
+    bar.appendChild(btn);
+    return btn;
+  });
+
+  function draw() {
+    const selectedId = getSelectedId();
+
+    buttons.forEach((btn, index) => {
+      const key = HOTBAR_KEYS[index];
+      const id = moduleInSlot(slots, index);
+      const mod = id ? MODULE_BY_ID[id] : null;
+
+      const keyLabel = document.createElement('span');
+      keyLabel.className = 'hotbar-key';
+      keyLabel.textContent = key;
+      const icon = mod ? createModuleIcon(mod) : Object.assign(document.createElement('span'), { className: 'module-icon' });
+      btn.replaceChildren(keyLabel, icon);
+
+      btn.classList.toggle('empty', !mod);
+      btn.classList.toggle('selected', !!mod && id === selectedId);
+      btn.draggable = !!mod && index !== ERASER_SLOT;
+      btn.title = !mod ? `Empty slot ${key}: select a module and press Shift+${key}, or drag one here`
+        : index === ERASER_SLOT ? `${mod.label} (${key})`
+        : `${mod.label} (${key})\nShift+${key} stores the selected module here, right-click empties the slot`;
+    });
+  }
+
+  draw();
+
+  return {
+    draw,
+    choose,
+
+    // Store the selected module in a slot (Shift + number); the eraser has its own key
+    store(index) {
+      const id = getSelectedId();
+      if (!id || id === EMPTY_ID || index === ERASER_SLOT) return;
+
+      update(assignSlot(slots, index, id));
+      // Short flash so you see where it went (restarted on a repeat press)
+      const btn = buttons[index];
+      btn.classList.remove('stored');
+      void btn.offsetWidth;
+      btn.classList.add('stored');
+    },
+  };
+}
+
 /**
  * Module palette: eraser on top, then one collapsible group per category,
- * filtered by the search box.
+ * filtered by the search box. Modules can be dragged onto the hotbar.
  */
 function buildPalette(onSelectModule) {
   const paletteContainer = document.getElementById('modulePalette');
@@ -258,11 +395,14 @@ function buildPalette(onSelectModule) {
     const btn = createModuleButton(mod);
     btn.dataset.id = mod.id;
 
-    // Selection behavior
-    btn.addEventListener('click', () => {
-      highlight(btn);
-      onSelectModule(mod);
-    });
+    // Selection behavior (highlighting comes back through select())
+    btn.addEventListener('click', () => onSelectModule(mod));
+
+    // Drag onto a hotbar slot to store it there
+    if (mod.id !== EMPTY_ID) {
+      btn.draggable = true;
+      btn.addEventListener('dragstart', (e) => e.dataTransfer.setData(MODULE_DRAG_TYPE, mod.id));
+    }
 
     buttons.push(btn);
     parent.appendChild(btn);
@@ -327,25 +467,10 @@ function createModuleButton(mod) {
   btn.dataset.label = mod.label;
   btn.title = mod.label;
 
-  // Convert numeric color → hex string
-  const colorHex = `#${mod.color.toString(16).padStart(6, '0')}`;
-
   // Via CSS variable so the .selected border can still override it
-  btn.style.setProperty('--module-color', colorHex);
+  btn.style.setProperty('--module-color', colorHex(mod));
 
-  const icon = document.createElement('span');
-  icon.className = 'module-icon';
-  icon.style.backgroundColor = colorHex;
-
-  if (mod.icon) {
-    const img = document.createElement('img');
-    img.src = mod.icon;
-    img.alt = '';
-    img.onerror = () => img.remove(); // color block remains
-    icon.appendChild(img);
-  } else {
-    icon.textContent = mod.short;
-  }
+  const icon = createModuleIcon(mod);
 
   const label = document.createElement('span');
   label.className = 'module-label';
@@ -354,6 +479,30 @@ function createModuleButton(mod) {
   btn.appendChild(icon);
   btn.appendChild(label);
   return btn;
+}
+
+// Numeric module color → CSS hex string
+const colorHex = (mod) => `#${mod.color.toString(16).padStart(6, '0')}`;
+
+/**
+ * Module icon (palette and hotbar): image tinted with the module color,
+ * or a color block with the tile's short label; the eraser gets a cross
+ */
+function createModuleIcon(mod) {
+  const icon = document.createElement('span');
+  icon.className = 'module-icon';
+  icon.style.backgroundColor = colorHex(mod);
+
+  if (mod.icon) {
+    const img = document.createElement('img');
+    img.src = mod.icon;
+    img.alt = '';
+    img.onerror = () => img.remove(); // color block remains
+    icon.appendChild(img);
+  } else {
+    icon.textContent = mod.kind === 'eraser' ? '✕' : mod.short;
+  }
+  return icon;
 }
 
 /**

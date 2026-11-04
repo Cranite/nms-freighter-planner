@@ -19,6 +19,7 @@ body {
 }
 
 #canvasContainer {
+  position: relative; /* for the hotbar */
   flex: 1;
   min-width: 0; /* allow shrinking below canvas size on window resize */
   overflow: hidden;
@@ -103,6 +104,82 @@ button {
 .module-btn.selected {
   border-color: #fff;
   background: #222;
+}
+
+/* Hotbar: quick-select slots along the bottom of the drawing area */
+#hotbar {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  z-index: 1; /* above the canvas */
+  display: flex;
+  gap: 4px;
+  max-width: calc(100% - 20px);
+  overflow-x: auto;
+  padding: 4px;
+  border: 1px solid #333;
+  border-radius: 8px;
+  background: rgba(16, 16, 16, 0.75);
+}
+
+.hotbar-slot {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 3px;
+  width: 44px;
+  margin: 0;
+  padding: 3px 0 4px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  background: #1a1a1a;
+  color: #ddd;
+  font: inherit;
+  cursor: pointer;
+}
+
+.hotbar-slot:hover {
+  background: #262626;
+}
+
+.hotbar-slot.selected {
+  border-color: #f39c12;
+}
+
+.hotbar-slot.drop-target {
+  border-color: #fff;
+}
+
+.hotbar-slot.eraser-slot {
+  margin-left: 6px; /* set apart: always the eraser */
+}
+
+.hotbar-slot.stored {
+  animation: hotbar-stored 0.6s;
+}
+
+@keyframes hotbar-stored {
+  from { background: #f39c12; }
+}
+
+.hotbar-key {
+  font-size: 0.7rem;
+  font-weight: bold;
+  line-height: 1;
+  color: #aaa;
+}
+
+.hotbar-slot .module-icon {
+  width: 30px;
+  height: 30px;
+  font-size: 0.75rem;
+}
+
+.hotbar-slot.empty .module-icon {
+  box-sizing: border-box;
+  border: 1px dashed #444;
 }
 
 /* Color block with short label, or image tinted by the module color */

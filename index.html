@@ -88,6 +88,8 @@
       <li><span>Walls around a box</span> <span><kbd>Ctrl</kbd> + drag / right-drag</span></li>
       <li><span>Fill / erase box</span> <span><kbd>Ctrl</kbd> + drag / right-drag</span></li>
       <li><span>Remove</span> <span><kbd>Right</kbd> / <kbd>Shift</kbd> + click</span></li>
+      <li><span>Quick select</span> <span><kbd>1</kbd>–<kbd>9</kbd>, <kbd>0</kbd> eraser</span></li>
+      <li><span>Store in hotbar</span> <span><kbd>Shift</kbd> + <kbd>1</kbd>–<kbd>9</kbd> / drag</span></li>
       <li><span>Pick from tile</span> <span><kbd>Middle</kbd> / <kbd>Alt</kbd> + click</span></li>
       <li><span>Rotate stairs</span> <kbd>R</kbd></li>
       <li><span>Turn the view</span> <span><kbd>Q</kbd> / <kbd>E</kbd></span></li>
@@ -98,8 +100,10 @@
     </ul>
   </div>
 
-  <!-- PIXI canvas is injected here -->
-  <div id="canvasContainer"></div>
+  <!-- PIXI canvas is injected here; the hotbar lies over its bottom edge -->
+  <div id="canvasContainer">
+    <div id="hotbar" aria-label="Hotbar"></div>
+  </div>
 
   <!-- Entry point (ES module) -->
   <script type="module" src="js/main.js"></script>

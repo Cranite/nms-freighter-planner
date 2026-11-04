@@ -4,8 +4,13 @@ import { EMPTY_ID, MODULE_BY_ID } from './modules.js';
 import { tileEdge, getWall, boxOutline } from './walls.js';
 import { isTypingTarget } from './ui.js';
 
+// Room kept free along the bottom of the drawing area for the hotbar (#hotbar
+// in style.css, about 65px tall plus its 10px gap), so it doesn't cover the grid
+const HOTBAR_SPACE = 80;
+
 /**
  * Calculates tile size based on viewport.
+ * The hotbar's space at the bottom doesn't count.
  * Keeps tiles between min/max for usability.
  * Lives here, not in data.js: it measures the page, and data.js
  * must also load without one (unit tests run in Node).
@@ -14,7 +19,7 @@ function calculateTileSize() {
   // Measure the actual canvas area (sidebar width incl. padding/border excluded)
   const canvasContainer = document.getElementById('canvasContainer');
   const canvasWidth = canvasContainer.clientWidth;
-  const canvasHeight = canvasContainer.clientHeight;
+  const canvasHeight = canvasContainer.clientHeight - HOTBAR_SPACE;
   
   const minSize = 24;
   const maxSize = 48;
@@ -163,6 +168,8 @@ function initRenderer(app) {
     drawAboveOutlines(aboveOutlines, onionSkin.above ? floors[floorNum] : null, floors[floorNum - 1]);
   }
 
+  let interaction = null; // set up once main.js passes its handlers
+
   return {
     // Show floor `n` of `allFloors` (with its onion skin)
     drawFloor(allFloors, n) {
@@ -210,7 +217,10 @@ function initRenderer(app) {
     exportImage: (allFloors, floorNums) => renderFloorsImage(app.renderer, allFloors, floorNums),
 
     showProblemTiles: (tiles) => drawProblemMarkers(problemMarkers, tiles),
-    setupInteraction: (handlers) => setupInteraction(grid, ghost, edgeGhost, boxPreview, handlers),
+    setupInteraction: (handlers) => { interaction = setupInteraction(grid, ghost, edgeGhost, boxPreview, handlers); },
+
+    // The selected module changed (e.g. a hotbar key): update the preview under the pointer right away
+    refreshGhost: () => interaction?.refreshGhost(),
   };
 }
 
@@ -994,12 +1004,14 @@ function setupZoomAndDrag(app, stageContainer) {
 
 /**
  * Constrains the stage position so the grid remains within view bounds.
+ * The view ends above the hotbar: a grid that fits stays centred above it,
+ * and a zoomed-in grid can be panned until its bottom row is above it.
  */
 function clampStagePosition(stageContainer, app, margin = 50) {
   const stageWidth = GRID_SIZE * TILE_SIZE * stageContainer.scale.x;
   const stageHeight = GRID_SIZE * TILE_SIZE * stageContainer.scale.y;
   const viewWidth = app.renderer.width;
-  const viewHeight = app.renderer.height;
+  const viewHeight = app.renderer.height - HOTBAR_SPACE;
 
   const halfW = stageWidth / 2;
   const halfH = stageHeight / 2;
@@ -1028,7 +1040,7 @@ function clampStagePosition(stageContainer, app, margin = 50) {
 
 function centerStage(stageContainer, app) {
   stageContainer.x = app.renderer.width / 2;
-  stageContainer.y = app.renderer.height / 2;
+  stageContainer.y = (app.renderer.height - HOTBAR_SPACE) / 2;
 }
 
 /**
@@ -1090,6 +1102,7 @@ function setupInteraction(grid, ghost, edgeGhost, boxPreview, {
   };
 
   let hoverTile = null; // { x, y } under the pointer
+  let pointer = null;   // last pointer position over the grid (screen), for refreshGhost
   let lastDrawn = null; // last tile drawn in the current stroke
 
   const updateGhost = () => {
@@ -1147,6 +1160,7 @@ function setupInteraction(grid, ghost, edgeGhost, boxPreview, {
   const leaveGrid = () => {
     hoverTile = null;
     hoverEdge = null;
+    pointer = null;
     lastDrawn = null; // don't connect strokes across the outside of the grid
     ghost.hide();
     edgeGhost.hide();
@@ -1245,6 +1259,7 @@ function setupInteraction(grid, ghost, edgeGhost, boxPreview, {
   grid.on('pointermove', (e) => {
     const tile = tileAt(e);
     if (!tile) return leaveGrid();
+    pointer = e.global.clone();
 
     // Wall pieces follow the pointer within a tile too (a box still goes by tile)
     if (wallRun) return continueWallRun(e);
@@ -1281,6 +1296,25 @@ function setupInteraction(grid, ghost, edgeGhost, boxPreview, {
   grid.on('pointerupoutside', endStroke);
 
   window.addEventListener('mouseup', endStroke);
+
+  return {
+    // Another module was selected while the pointer stays put. A switch between
+    // a module and a wall piece changes what's under the pointer (tile or edge),
+    // so work that out again from the last pointer position.
+    refreshGhost() {
+      if (box) return showBox();
+      if (!pointer || wallRun || isDrawing) return;
+
+      const at = { global: pointer };
+      if (isWallTool()) {
+        hoverTile = null;
+        hoverEdge = nearestEdge(at)?.edge ?? null;
+      } else {
+        hoverTile = tileAt(at);
+      }
+      updateGhost();
+    },
+  };
 }
 
 /**

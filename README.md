@@ -15,6 +15,7 @@ A browser-based planning tool for designing freighter layouts using a grid syste
 - Grouped, searchable module palette
 - Drag & place modules; right-click (or Shift+click) to remove; the way in from the bridge is marked above tile (10, 0) on floor 1
 - Box fill: Ctrl+drag fills a box with the selected module, Ctrl+right-drag erases it (one undo step, Esc cancels)
+- Hotbar along the bottom: `1`–`9` select a module, `0` the eraser. Shift + number (or dragging a module onto a slot) stores the selected module there; right-click empties a slot. Remembered in this browser
 - Eyedropper: middle-click (or Alt+click) a placed module to select it with its rotation
 - Rotation system for stairs (R key)
 - Zoom & pan (mouse)
@@ -41,6 +42,7 @@ The project is structured into clear layers:
 - `walls.js` → wall pieces on the edges between tiles: where they can go, and cleaning up walls that lost their room
 - `validation.js` → layout checks (reachability from the bridge, storage numbers, stairs ends)
 - `floorTools.js` → copy, paste and clear a whole floor
+- `hotbar.js` → hotbar slots on the number keys: assigning, saving, key mapping
 - `share.js` → share links: the layout compressed into the URL #hash
 - `render.js` → PIXI rendering & interaction logic
 - `ui.js` → DOM-based UI
@@ -48,7 +50,7 @@ The project is structured into clear layers:
 - `main.js` → orchestration / application logic
 
 ## 🧪 Tests
-Unit tests for the logic (footprints, walls, validation, undo history, floor tools, save format) live in `tests/`. They use Node's built-in test runner, so there's nothing to install (Node 22 or newer):
+Unit tests for the logic (footprints, walls, validation, undo history, floor tools, save format, share links, hotbar) live in `tests/`. They use Node's built-in test runner, so there's nothing to install (Node 22 or newer):
 
 ```bash
 npm test

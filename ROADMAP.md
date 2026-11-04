@@ -59,7 +59,7 @@ Each step makes the next one cheaper, so the order matters.
 - [x] Copy / paste / clear a whole floor (`js/floorTools.js`; paste skips modules that don't fit)
 - [x] Right-click to erase (Shift+click still works)
 - [x] Turn the view in 90° steps (Q / E or the ⟲ / ⟳ buttons); a view preference, the layout keeps the bridge at the top
-- [ ] Keyboard shortcuts: `1`–`9` select module (PgUp/PgDn change floor ✅, Ctrl+Z / Ctrl+Y undo/redo ✅ done)
+- [x] Keyboard shortcuts: `1`–`9` select module from a hotbar you fill yourself, `0` eraser (`js/hotbar.js`; PgUp/PgDn change floor ✅, Ctrl+Z / Ctrl+Y undo/redo ✅ done)
 
 ## 🧭 Planning helpers
 
