@@ -1,5 +1,6 @@
 import { FLOORS } from './data.js';
 import { MODULE_TYPES, MODULE_BY_ID, CATEGORIES, EMPTY_ID } from './modules.js';
+import { countTotals } from './summary.js';
 import {
   HOTBAR_KEYS, ERASER_SLOT, slotForKey, moduleInSlot, assignSlot, clearSlot, loadHotbar, saveHotbar,
 } from './hotbar.js';
@@ -23,6 +24,7 @@ export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onVi
 
   const palette = buildPalette(chooseModule);
   const hotbar = buildHotbar(chooseModule, () => selectedId);
+  const moduleCount = buildModuleCount();
 
   // Floor Selector
   const floorSelect = document.getElementById('floorSelect');
@@ -202,6 +204,11 @@ export function setupUI({ onSelectModule, onSelectFloor, onOnionSkinChange, onVi
       container.appendChild(list);
     },
 
+    // Module count: { floorNum, floor, all } with counts from summary.js
+    showModuleCount(data) {
+      moduleCount.show(data);
+    },
+
     // Mark floors that have modules on them: "Floor 3 •"
     setFloorsWithContent(hasContent) {
       [...floorSelect.options].forEach((opt, i) => {
@@ -264,6 +271,108 @@ function saveViewTurns(turns) {
   } catch (err) {
     console.warn('⚠️ View rotation could not be saved', err);
   }
+}
+
+// Module count panel: which counts it shows (this floor or all floors) and
+// whether it's open, remembered in this browser
+const MODULE_COUNT_KEY = 'freighterModuleCount';
+
+function loadModuleCountSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(MODULE_COUNT_KEY));
+    return {
+      open: saved?.open === true,
+      scope: saved?.scope === 'all' ? 'all' : 'floor',
+    };
+  } catch {
+    return { open: false, scope: 'floor' };
+  }
+}
+
+function saveModuleCountSettings(settings) {
+  try {
+    localStorage.setItem(MODULE_COUNT_KEY, JSON.stringify(settings));
+  } catch (err) {
+    console.warn('⚠️ Module count setting could not be saved', err);
+  }
+}
+
+/**
+ * Module count panel (collapsible): what this floor or the whole freighter
+ * uses, grouped like the palette, with the totals on top
+ */
+function buildModuleCount() {
+  const panel = document.getElementById('moduleCount');
+  const list = document.getElementById('moduleCountList');
+  const scopeButtons = {
+    floor: document.getElementById('countFloorBtn'),
+    all: document.getElementById('countAllBtn'),
+  };
+
+  const settings = loadModuleCountSettings();
+  panel.open = settings.open;
+  let data = null;
+
+  panel.addEventListener('toggle', () => {
+    settings.open = panel.open;
+    saveModuleCountSettings(settings);
+  });
+  for (const [scope, btn] of Object.entries(scopeButtons)) {
+    btn.addEventListener('click', () => {
+      settings.scope = scope;
+      saveModuleCountSettings(settings);
+      draw();
+    });
+  }
+
+  const line = (className, text) => Object.assign(document.createElement('p'), { className, textContent: text });
+
+  function draw() {
+    for (const [scope, btn] of Object.entries(scopeButtons)) {
+      btn.setAttribute('aria-pressed', String(scope === settings.scope));
+    }
+    if (!data) return;
+
+    scopeButtons.floor.textContent = `Floor ${data.floorNum}`;
+    const counts = settings.scope === 'all' ? data.all : data.floor;
+    list.replaceChildren();
+
+    if (counts.length === 0) {
+      list.appendChild(line('hint', settings.scope === 'all' ? 'Nothing built yet.' : `Nothing on floor ${data.floorNum} yet.`));
+      return;
+    }
+
+    const { modules, wallPieces } = countTotals(counts);
+    const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+    list.appendChild(line('count-total', [modules && plural(modules, 'module'), wallPieces && plural(wallPieces, 'wall piece')].filter(Boolean).join(', ')));
+
+    let category = null;
+    for (const { modDef, count } of counts) {
+      if (modDef.category !== category) {
+        category = modDef.category;
+        list.appendChild(line('count-heading', CATEGORIES.find(c => c.id === category)?.label ?? ''));
+      }
+
+      const row = document.createElement('div');
+      row.className = 'count-row';
+      row.title = modDef.label;
+      const label = Object.assign(document.createElement('span'), { className: 'count-label', textContent: modDef.label });
+      const number = Object.assign(document.createElement('span'), { className: 'count-number', textContent: `×${count}` });
+      row.append(createModuleIcon(modDef), label, number);
+      list.appendChild(row);
+    }
+
+    if (counts.some(({ modDef }) => modDef.kind === 'stairs')) {
+      list.appendChild(line('hint', 'Stairs count on the floor they start on.'));
+    }
+  }
+
+  return {
+    show(newData) {
+      data = newData;
+      draw();
+    },
+  };
 }
 
 // Drag data type for a module dragged onto the hotbar (from the palette or another slot)

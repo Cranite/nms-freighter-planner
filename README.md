@@ -9,6 +9,7 @@ A browser-based planning tool for designing freighter layouts using a grid syste
 - 39 freighter modules from the game: corridors, stairs, exterior decks, High-Tech / Industrial / Agricultural rooms
 - Wall pieces on the edges between tiles: Internal Freighter Wall, Reinforced Window and Bulkhead Door. Click or drag along an edge, or Ctrl+drag to put them around a box (Ctrl+right-drag clears a box). They only go where the game allows (next to the interior, at the ends of stairs) and are removed together with the room next to them. Corridors and catwalks shape themselves around them: a wall closes a side, a door opens onto what's behind it
 - Stairs span 2 tiles and 2 floors, like in the game; occupied tiles can't be built on
+- Module count: how many of each module (and wall piece) this floor or the whole freighter uses, grouped like the palette
 - Validation: unreachable modules, duplicate storage numbers and dead-end stairs are listed and marked on the grid. Walls and windows block the way; the exterior (catwalks, platforms, exterior stairs) is only reachable through a Bulkhead Door
 - Corridors shape themselves (straight, corner, T, cross) based on their neighbours
 - Exterior catwalks form connected paths and platforms merge into decks, with a railing on their open sides
@@ -43,6 +44,7 @@ The project is structured into clear layers:
 - `validation.js` → layout checks (reachability from the bridge, storage numbers, stairs ends)
 - `floorTools.js` → copy, paste and clear a whole floor
 - `hotbar.js` → hotbar slots on the number keys: assigning, saving, key mapping
+- `summary.js` → module count (per floor or for the whole freighter)
 - `share.js` → share links: the layout compressed into the URL #hash
 - `render.js` → PIXI rendering & interaction logic
 - `ui.js` → DOM-based UI
@@ -50,7 +52,7 @@ The project is structured into clear layers:
 - `main.js` → orchestration / application logic
 
 ## 🧪 Tests
-Unit tests for the logic (footprints, walls, validation, undo history, floor tools, save format, share links, hotbar) live in `tests/`. They use Node's built-in test runner, so there's nothing to install (Node 22 or newer):
+Unit tests for the logic (footprints, walls, validation, undo history, floor tools, save format, share links, hotbar, module count) live in `tests/`. They use Node's built-in test runner, so there's nothing to install (Node 22 or newer):
 
 ```bash
 npm test

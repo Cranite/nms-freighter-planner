@@ -10,6 +10,7 @@ import { createHistory } from './history.js';
 import { validateLayout } from './validation.js';
 import { copyFloor, pasteFloor, clearFloor } from './floorTools.js';
 import { layoutToHash, layoutFromHash } from './share.js';
+import { countModules } from './summary.js';
 import { canHaveWall, getWall, setWall, pruneWallsAround, pruneAllWalls, edgesAround, boxOutline } from './walls.js';
 
 // Application state; continues where the last session left off (auto-save)
@@ -224,6 +225,7 @@ function goToFloor(n) {
 function drawCurrentFloor() {
   renderer.drawFloor(freighter.floors, currentFloor);
   showProblemMarkers();
+  showModuleCount();
 }
 
 /**
@@ -249,7 +251,17 @@ function scheduleValidation() {
     problems = validateLayout(freighter);
     ui.showProblems(problems);
     showProblemMarkers();
+    showModuleCount(); // also debounced here: a drag changes many tiles
   }, VALIDATION_DELAY);
+}
+
+// Module count for the current floor and for the whole freighter (the sidebar shows one)
+function showModuleCount() {
+  ui.showModuleCount({
+    floorNum: currentFloor,
+    floor: countModules([freighter.floors[currentFloor - 1]]),
+    all: countModules(freighter.floors),
+  });
 }
 
 // Red markers on the current floor's problem tiles

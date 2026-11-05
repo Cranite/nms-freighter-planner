@@ -54,6 +54,16 @@
     <!-- Validation problems (filled by ui.js); click one to go to its floor -->
     <div id="problems" aria-live="polite"></div>
 
+    <!-- Module count (filled by ui.js): what this floor or the whole freighter uses -->
+    <details id="moduleCount">
+      <summary>Module count</summary>
+      <div class="button-row count-scope">
+        <button id="countFloorBtn" aria-pressed="true" title="Count the modules on this floor">This floor</button>
+        <button id="countAllBtn" aria-pressed="false" title="Count the modules on all floors">All floors</button>
+      </div>
+      <div id="moduleCountList"></div>
+    </details>
+
     <!-- Module palette (dynamically populated) -->
     <h3>Modules</h3>
     <input type="search" id="moduleSearch" placeholder="Search modules…" aria-label="Search modules">

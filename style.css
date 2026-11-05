@@ -264,6 +264,67 @@ button {
   background: #3a1d1d;
 }
 
+/* Module count panel under the problems */
+#moduleCount {
+  margin: 6px 0;
+  font-size: 0.8rem;
+}
+
+#moduleCount summary {
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.count-scope button[aria-pressed="true"] {
+  outline: 2px solid #f39c12;
+  outline-offset: -2px;
+  font-weight: bold;
+}
+
+#moduleCountList {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+#moduleCountList p {
+  margin: 4px 0 2px;
+}
+
+.count-total {
+  font-weight: bold;
+}
+
+.count-heading {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.count-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 0;
+}
+
+.count-row .module-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  font-size: 0.5rem;
+}
+
+.count-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count-number {
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+}
+
 .hint {
   margin: 6px 0 2px;
   font-size: 0.75rem;
